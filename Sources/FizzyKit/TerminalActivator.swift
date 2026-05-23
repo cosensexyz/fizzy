@@ -1,20 +1,115 @@
 import AppKit
 
 enum TerminalActivator {
+    private static let queue = DispatchQueue(label: "com.fizzy.terminal-activator")
+    private static var _inPreview = false
+    private static var _savedApp: NSRunningApplication?
+    private static var _savedPaneId: String?
+    private static var _savedPaneSocket: String?
+
+    static var inPreview: Bool {
+        queue.sync { _inPreview }
+    }
+
+    static func resolveTerminalApp(for item: NotificationItem) -> NSRunningApplication? {
+        if let pid = item.env.terminalPid,
+           let app = NSRunningApplication(processIdentifier: pid_t(pid)),
+           !app.isTerminated {
+            return app
+        }
+        guard let app = findTerminalFallback(), !app.isTerminated else { return nil }
+        return app
+    }
+
+    @discardableResult
+    static func enterPreview(for item: NotificationItem) -> Bool {
+        guard let app = resolveTerminalApp(for: item) else { return false }
+
+        let frontmost = NSWorkspace.shared.frontmostApplication
+        let entered = queue.sync { () -> Bool in
+            guard !_inPreview else { return false }
+            _inPreview = true
+            _savedApp = frontmost
+            return true
+        }
+        guard entered else { return false }
+
+        let env = item.env
+        let cwd = item.notification.cwd
+        let appName = app.localizedName
+
+        queue.async {
+
+            if let pane = env.tmuxPane {
+                _savedPaneId = currentTmuxPane(socketPath: env.tmuxSocketPath)
+                _savedPaneSocket = env.tmuxSocketPath
+                selectTmuxPane(pane, socketPath: env.tmuxSocketPath)
+            } else {
+                let dirName = URL(fileURLWithPath: cwd).lastPathComponent
+                if let appName {
+                    raiseWindow(matching: dirName, appName: appName)
+                }
+            }
+            DispatchQueue.main.async {
+                guard queue.sync(execute: { _inPreview }) else { return }
+                app.activate(options: [.activateIgnoringOtherApps])
+            }
+        }
+        return true
+    }
+
+    static func switchPreview(to item: NotificationItem) {
+        let env = item.env
+        let cwd = item.notification.cwd
+        let app = resolveTerminalApp(for: item)
+        let appName = app?.localizedName
+
+        queue.async {
+            if let pane = env.tmuxPane {
+                selectTmuxPane(pane, socketPath: env.tmuxSocketPath)
+            } else {
+                let dirName = URL(fileURLWithPath: cwd).lastPathComponent
+                if let appName {
+                    raiseWindow(matching: dirName, appName: appName)
+                }
+            }
+        }
+    }
+
+    static func exitPreview() {
+        queue.async {
+            guard _inPreview else { return }
+            let appToRestore = _savedApp
+            _savedApp = nil
+            _inPreview = false
+
+            if let paneId = _savedPaneId {
+                selectTmuxPane(paneId, socketPath: _savedPaneSocket)
+                _savedPaneId = nil
+                _savedPaneSocket = nil
+            }
+            DispatchQueue.main.async {
+                appToRestore?.activate(options: [.activateIgnoringOtherApps])
+            }
+        }
+    }
+
+    static func clearPreviewState() {
+        queue.async {
+            _savedApp = nil
+            _savedPaneId = nil
+            _savedPaneSocket = nil
+            _inPreview = false
+        }
+    }
+
     static func activate(for item: NotificationItem) {
+        guard let app = resolveTerminalApp(for: item) else { return }
+        let appName = app.localizedName
         let env = item.env
         let cwd = item.notification.cwd
 
-        let app: NSRunningApplication?
-        if let pid = env.terminalPid {
-            app = NSRunningApplication(processIdentifier: pid_t(pid))
-        } else {
-            app = findTerminalFallback()
-        }
-        guard let app, !app.isTerminated else { return }
-        let appName = app.localizedName
-
-        DispatchQueue.global(qos: .userInitiated).async {
+        queue.async {
             if let pane = env.tmuxPane {
                 selectTmuxPane(pane, socketPath: env.tmuxSocketPath)
             } else {
@@ -65,6 +160,30 @@ enum TerminalActivator {
             try? process.run()
             process.waitUntilExit()
         }
+    }
+
+    private static func currentTmuxPane(socketPath: String?) -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        var args = ["tmux"]
+        if let socket = socketPath {
+            args += ["-S", socket]
+        }
+        args += ["display-message", "-p", "#{pane_id}"]
+        process.arguments = args
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            return nil
+        }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              output.range(of: #"^%\d+$"#, options: .regularExpression) != nil else { return nil }
+        return output
     }
 
     private static func raiseWindow(matching dirName: String, appName: String) {

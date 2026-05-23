@@ -18,4 +18,66 @@ final class TerminalActivatorTests: XCTestCase {
         let args = TerminalActivator.tmuxArgs(pane: "%0", socketPath: nil, command: "select-pane")
         XCTAssertEqual(args, ["tmux", "select-pane", "-t", "%0"])
     }
+
+    func testResolveTerminalAppFallsBackWhenPidInvalid() {
+        let item = NotificationItem(
+            notification: GenericPayload(message: "test", cwd: "/tmp"),
+            env: EnvironmentContext(terminalPid: 99999)
+        )
+        let app = TerminalActivator.resolveTerminalApp(for: item)
+        XCTAssertEqual(app != nil, TerminalActivator.findTerminalFallback() != nil,
+                       "Invalid PID must fall through to fallback chain")
+    }
+
+    func testResolveTerminalAppReturnsNilWhenNothingAvailable() {
+        let item = NotificationItem(
+            notification: GenericPayload(message: "test", cwd: "/tmp"),
+            env: EnvironmentContext(terminalPid: 99999)
+        )
+        let app = TerminalActivator.resolveTerminalApp(for: item)
+        if TerminalActivator.findTerminalFallback() == nil {
+            XCTAssertNil(app)
+        }
+    }
+
+    func testExitPreviewSafeWithoutPriorPreview() {
+        TerminalActivator.exitPreview()
+        XCTAssertFalse(TerminalActivator.inPreview)
+    }
+
+    func testEnterPreviewSetsInPreview() {
+        let item = NotificationItem(
+            notification: GenericPayload(message: "test", cwd: "/tmp"),
+            env: EnvironmentContext(terminalPid: 99999)
+        )
+        if TerminalActivator.findTerminalFallback() != nil {
+            XCTAssertTrue(TerminalActivator.enterPreview(for: item))
+            XCTAssertTrue(TerminalActivator.inPreview)
+            TerminalActivator.exitPreview()
+        }
+    }
+
+    func testEnterPreviewRejectsReEntry() {
+        let item = NotificationItem(
+            notification: GenericPayload(message: "test", cwd: "/tmp"),
+            env: EnvironmentContext(terminalPid: 99999)
+        )
+        if TerminalActivator.findTerminalFallback() != nil {
+            XCTAssertTrue(TerminalActivator.enterPreview(for: item))
+            XCTAssertFalse(TerminalActivator.enterPreview(for: item))
+            TerminalActivator.exitPreview()
+        }
+    }
+
+    func testClearPreviewStateResetsInPreview() {
+        let item = NotificationItem(
+            notification: GenericPayload(message: "test", cwd: "/tmp"),
+            env: EnvironmentContext(terminalPid: 99999)
+        )
+        if TerminalActivator.findTerminalFallback() != nil {
+            _ = TerminalActivator.enterPreview(for: item)
+            TerminalActivator.clearPreviewState()
+            XCTAssertFalse(TerminalActivator.inPreview)
+        }
+    }
 }

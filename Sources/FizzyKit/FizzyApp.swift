@@ -10,6 +10,7 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
     private var listVisible = false
     private var petToListOffset = NSPoint.zero
     private var isRepositioning = false
+    private var listDismissTimer: Timer?
 
     public override init() {
         super.init()
@@ -21,6 +22,8 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
         window = FizzyWindow()
         window.orderFront(nil)
         window.onPetClicked = { [weak self] in self?.toggleList() }
+        window.onPetHoverEnter = { [weak self] in self?.showList() }
+        window.onPetHoverExit = { [weak self] in self?.scheduleHideList() }
 
         NotificationCenter.default.addObserver(
             self, selector: #selector(windowDidMove),
@@ -29,10 +32,9 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
 
         toastManager = ToastManager()
         listPanel = NotificationListPanel()
-        listPanel.onClose = { [weak self] in
-            self?.listPanel.orderOut(nil)
-            self?.listVisible = false
-        }
+        listPanel.onClose = { [weak self] in self?.hideList() }
+        listPanel.onPanelHoverEnter = { [weak self] in self?.cancelHideList() }
+        listPanel.onPanelHoverExit = { [weak self] in self?.scheduleHideList() }
 
         NotificationCenter.default.addObserver(
             self, selector: #selector(listPanelDidMove),
@@ -58,6 +60,7 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
     private func handleNotification(agent: String, payload: any AgentPayload, env: EnvironmentContext) {
         let item = store.add(payload, agent: agent, env: env)
         window.updateFizzyState(unreadCount: store.unreadCount)
+        if listVisible { listPanel.reload() }
         toastManager.show(item: item, relativeTo: window) { [weak self] item in
             self?.openSession(item)
         }
@@ -83,22 +86,46 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
         isRepositioning = false
     }
 
+    private func showList() {
+        cancelHideList()
+        guard !listVisible else { return }
+        listPanel.show(
+            store: store,
+            relativeTo: window,
+            onUpdate: { [weak self] in self?.updateFizzyState() },
+            onOpen: { [weak self] item in self?.openSession(item) }
+        )
+        petToListOffset = NSPoint(
+            x: listPanel.frame.origin.x - window.frame.origin.x,
+            y: listPanel.frame.origin.y - window.frame.origin.y
+        )
+        listVisible = true
+    }
+
+    private func hideList() {
+        cancelHideList()
+        TerminalActivator.exitPreview()
+        listPanel.orderOut(nil)
+        listVisible = false
+    }
+
+    private func scheduleHideList() {
+        listDismissTimer?.invalidate()
+        listDismissTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: false) { [weak self] _ in
+            self?.hideList()
+        }
+    }
+
+    private func cancelHideList() {
+        listDismissTimer?.invalidate()
+        listDismissTimer = nil
+    }
+
     private func toggleList() {
         if listVisible {
-            listPanel.orderOut(nil)
-            listVisible = false
+            hideList()
         } else {
-            listPanel.show(
-                store: store,
-                relativeTo: window,
-                onUpdate: { [weak self] in self?.updateFizzyState() },
-                onOpen: { [weak self] item in self?.openSession(item) }
-            )
-            petToListOffset = NSPoint(
-                x: listPanel.frame.origin.x - window.frame.origin.x,
-                y: listPanel.frame.origin.y - window.frame.origin.y
-            )
-            listVisible = true
+            showList()
         }
     }
 

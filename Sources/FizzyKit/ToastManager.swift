@@ -6,14 +6,28 @@ public enum ToastDirection: Equatable {
 
 public final class ToastManager {
     private var activeToasts: [(id: UUID, panel: ToastPanel)] = []
+    private var fadeTimers: [UUID: Timer] = [:]
 
     public init() {}
 
     public func show(item: NotificationItem, relativeTo petWindow: NSWindow, onClick: ((NotificationItem) -> Void)? = nil) {
         let panel = ToastPanel(item: item)
         panel.onClick = { [weak self] in
+            TerminalActivator.clearPreviewState()
             self?.dismiss(id: item.id)
             onClick?(item)
+        }
+        panel.onHoverEnter = { [weak self] in
+            if TerminalActivator.enterPreview(for: item) {
+                self?.cancelFade(id: item.id)
+                panel.alphaValue = 1.0
+            }
+        }
+        panel.onHoverExit = { [weak self] in
+            if TerminalActivator.inPreview {
+                TerminalActivator.exitPreview()
+                self?.scheduleFade(id: item.id, panel: panel, delay: 4.0)
+            }
         }
 
         let petFrame = petWindow.frame
@@ -29,13 +43,12 @@ public final class ToastManager {
         panel.alphaValue = 1.0
         panel.orderFront(nil)
 
-        let entry = (id: item.id, panel: panel)
-        activeToasts.append(entry)
-
+        activeToasts.append((id: item.id, panel: panel))
         scheduleFade(id: item.id, panel: panel, delay: 4.0)
     }
 
     private func dismiss(id: UUID) {
+        cancelFade(id: id)
         guard let index = activeToasts.firstIndex(where: { $0.id == id }) else { return }
         let panel = activeToasts[index].panel
         activeToasts.remove(at: index)
@@ -43,7 +56,9 @@ public final class ToastManager {
     }
 
     private func scheduleFade(id: UUID, panel: ToastPanel, delay: TimeInterval) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+        cancelFade(id: id)
+        fadeTimers[id] = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
+            self?.fadeTimers.removeValue(forKey: id)
             NSAnimationContext.runAnimationGroup({ ctx in
                 ctx.duration = 1.0
                 panel.animator().alphaValue = 0.0
@@ -54,13 +69,36 @@ public final class ToastManager {
         }
     }
 
+    private func cancelFade(id: UUID) {
+        fadeTimers[id]?.invalidate()
+        fadeTimers.removeValue(forKey: id)
+    }
+
+    // MARK: - Test helpers
+
+    func scheduleFadeForTest(id: UUID, delay: TimeInterval) {
+        let panel = ToastPanel(item: NotificationItem(
+            notification: GenericPayload(message: "", cwd: "/tmp")
+        ))
+        scheduleFade(id: id, panel: panel, delay: delay)
+    }
+
+    func hasPendingFade(for id: UUID) -> Bool {
+        fadeTimers[id] != nil
+    }
+
+    func cancelFadeForTest(id: UUID) {
+        cancelFade(id: id)
+    }
+
+    // MARK: - Positioning (unchanged)
+
     public static func bestDirection(petFrame: NSRect, screenFrame: NSRect) -> ToastDirection {
         let above = screenFrame.maxY - petFrame.maxY
         let below = petFrame.minY - screenFrame.minY
         let left = petFrame.minX - screenFrame.minX
         let right = screenFrame.maxX - petFrame.maxX
 
-        // Prefer vertical placement (below > above); fall back to horizontal (left > right)
         let minToastHeight: CGFloat = 60
         if below >= minToastHeight || above >= minToastHeight {
             return below >= above ? .below : .above

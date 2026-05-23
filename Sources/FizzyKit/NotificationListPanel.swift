@@ -12,6 +12,8 @@ public final class NotificationListPanel: NSPanel {
     private var hoveredItemId: UUID?
     private var dismissTimer: Timer?
     private var isMouseInDetail = false
+    public var onPanelHoverEnter: (() -> Void)?
+    public var onPanelHoverExit: (() -> Void)?
 
     static let panelWidth: CGFloat = 320
     static let panelHeight: CGFloat = 400
@@ -104,22 +106,24 @@ public final class NotificationListPanel: NSPanel {
         fizzyLabel.frame = NSRect(x: 16, y: 7, width: 40, height: 14)
         container.addSubview(fizzyLabel)
 
-        let escLabel = NSTextField(labelWithString: "esc to close")
-        escLabel.font = .monospacedSystemFont(ofSize: 9, weight: .regular)
-        escLabel.textColor = .white.withAlphaComponent(0.20)
-        escLabel.alignment = .right
-        escLabel.frame = NSRect(x: w - 100, y: 7, width: 84, height: 14)
-        container.addSubview(escLabel)
-
-        contentView = container
+        let hoverContainer = HoverContainerView(frame: container.bounds)
+        hoverContainer.autoresizingMask = [.width, .height]
+        hoverContainer.onEnter = { [weak self] in self?.onPanelHoverEnter?() }
+        hoverContainer.onExit = { [weak self] in self?.onPanelHoverExit?() }
+        hoverContainer.addSubview(container)
+        contentView = hoverContainer
     }
 
     public override var canBecomeKey: Bool { true }
 
     public override func keyDown(with event: NSEvent) {
         if event.keyCode == 53 {
-            if detailPanel != nil { dismissDetail() }
-            else { onClose?() }
+            if detailPanel != nil {
+                dismissDetail()
+            } else {
+                TerminalActivator.exitPreview()
+                onClose?()
+            }
         } else {
             super.keyDown(with: event)
         }
@@ -137,7 +141,7 @@ public final class NotificationListPanel: NSPanel {
 
         reposition(relativeTo: petWindow)
         reload()
-        makeKeyAndOrderFront(nil)
+        orderFront(nil)
     }
 
     private func reposition(relativeTo petWindow: NSWindow) {
@@ -152,6 +156,8 @@ public final class NotificationListPanel: NSPanel {
     }
 
     public func reload() {
+        hoveredItemId = nil
+        TerminalActivator.exitPreview()
         dismissDetail()
         guard let store else { return }
         stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
@@ -193,36 +199,22 @@ public final class NotificationListPanel: NSPanel {
         row.itemId = item.id
         row.onHoverEnter = { [weak self] id in self?.handleHoverEnter(id) }
         row.onHoverExit = { [weak self] id in self?.handleHoverExit(id) }
+        row.onClicked = { [weak self] id in self?.handleOpen(id) }
 
         NotificationRowBuilder.buildContent(
             item: item, in: row, layout: layout,
             messageWidth: messageWidth, isRead: item.isRead
         )
 
-        // Open button — top-aligned with title
-        let openBtnW: CGFloat = 50
-        let openBtnH: CGFloat = 24
-        let openBtn = ActionButton(
-            title: "Open", uuid: item.id,
-            action: { [weak self] id in self?.handleOpen(id) }
-        )
-        openBtn.wantsLayer = true
-        openBtn.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.12).cgColor
-        openBtn.layer?.cornerRadius = 6
-        openBtn.font = .systemFont(ofSize: 11, weight: .medium)
-        openBtn.contentTintColor = .white.withAlphaComponent(0.85)
-        let openX = w - 16 - openBtnW
-        openBtn.frame = NSRect(x: openX, y: layout.titleY - 3, width: openBtnW, height: openBtnH)
-        row.addSubview(openBtn)
-
-        // Dismiss × — right-aligned with Open, just below
+        // Dismiss × — top-right corner
         let dismissBtn = ActionButton(
             title: "\u{00D7}", uuid: item.id,
             action: { [weak self] id in self?.handleDismiss(id) }
         )
         dismissBtn.font = .systemFont(ofSize: 16, weight: .light)
         dismissBtn.contentTintColor = .white.withAlphaComponent(0.30)
-        dismissBtn.frame = NSRect(x: openX + openBtnW - 24, y: layout.titleY - 3 - 22, width: 24, height: 22)
+        let dismissX = w - 16 - 24
+        dismissBtn.frame = NSRect(x: dismissX, y: layout.titleY - 3, width: 24, height: 24)
         row.addSubview(dismissBtn)
 
         return row
@@ -233,15 +225,41 @@ public final class NotificationListPanel: NSPanel {
     private func handleHoverEnter(_ itemId: UUID) {
         dismissTimer?.invalidate()
         dismissTimer = nil
+
+        if hoveredItemId == itemId {
+            return
+        }
+
+        dismissDetail()
         hoveredItemId = itemId
         isMouseInDetail = false
         guard let item = store?.items.first(where: { $0.id == itemId }) else { return }
-        showDetail(for: item)
+
+        if TerminalActivator.inPreview {
+            TerminalActivator.switchPreview(to: item)
+        } else if TerminalActivator.enterPreview(for: item) {
+            // entered preview mode
+        } else {
+            showDetail(for: item)
+        }
     }
 
     private func handleHoverExit(_ itemId: UUID) {
         guard hoveredItemId == itemId else { return }
-        scheduleDismiss()
+        if TerminalActivator.inPreview {
+            schedulePreviewExit()
+        } else {
+            scheduleDismiss()
+        }
+    }
+
+    private func schedulePreviewExit() {
+        dismissTimer?.invalidate()
+        dismissTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: false) { [weak self] _ in
+            guard let self else { return }
+            self.hoveredItemId = nil
+            TerminalActivator.exitPreview()
+        }
     }
 
     private func detailPanelMouseEntered() {
@@ -480,11 +498,14 @@ public final class NotificationListPanel: NSPanel {
     // MARK: - Actions
 
     @objc private func closeClicked() {
+        dismissDetail()
+        TerminalActivator.exitPreview()
         onClose?()
     }
 
     private func handleOpen(_ itemId: UUID) {
         guard let item = store?.items.first(where: { $0.id == itemId }) else { return }
+        TerminalActivator.clearPreviewState()
         onOpen?(item)
         store?.dismiss(id: itemId)
         reload()
@@ -550,6 +571,7 @@ private final class HoverRow: NSView {
     var itemId: UUID?
     var onHoverEnter: ((UUID) -> Void)?
     var onHoverExit: ((UUID) -> Void)?
+    var onClicked: ((UUID) -> Void)?
     private var hoverTrackingArea: NSTrackingArea?
 
     override func updateTrackingAreas() {
@@ -557,7 +579,7 @@ private final class HoverRow: NSView {
         if let existing = hoverTrackingArea { removeTrackingArea(existing) }
         let area = NSTrackingArea(
             rect: bounds,
-            options: [.mouseEnteredAndExited, .activeInKeyWindow],
+            options: [.mouseEnteredAndExited, .activeAlways],
             owner: self
         )
         addTrackingArea(area)
@@ -572,6 +594,19 @@ private final class HoverRow: NSView {
     override func mouseExited(with event: NSEvent) {
         guard let id = itemId else { return }
         onHoverExit?(id)
+    }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let hit = super.hitTest(point)
+        if hit is NSButton { return hit }
+        return self
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        guard let id = itemId else { return }
+        onClicked?(id)
     }
 }
 
@@ -598,4 +633,27 @@ private final class ActionButton: NSButton {
     @objc private func clicked() {
         handler(uuid)
     }
+}
+
+// MARK: - Hover-tracking panel container
+
+private final class HoverContainerView: NSView {
+    var onEnter: (() -> Void)?
+    var onExit: (() -> Void)?
+    private var hoverTrackingArea: NSTrackingArea?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let existing = hoverTrackingArea { removeTrackingArea(existing) }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeAlways],
+            owner: self
+        )
+        addTrackingArea(area)
+        hoverTrackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) { onEnter?() }
+    override func mouseExited(with event: NSEvent) { onExit?() }
 }

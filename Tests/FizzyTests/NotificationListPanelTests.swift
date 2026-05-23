@@ -25,9 +25,13 @@ final class NotificationListPanelTests: XCTestCase {
     }
 
     private func arrangedRows(in panel: NotificationListPanel) -> [NSView] {
-        panel.contentView!.subviews
-            .compactMap { $0 as? NSScrollView }
+        findScrollView(in: panel.contentView!)
             .flatMap { ($0.documentView as? NSStackView)?.arrangedSubviews ?? [] }
+    }
+
+    private func findScrollView(in view: NSView) -> [NSScrollView] {
+        if let sv = view as? NSScrollView { return [sv] }
+        return view.subviews.flatMap { findScrollView(in: $0) }
     }
 
     func testRowHasExplicitHeightConstraint() {
@@ -60,12 +64,37 @@ final class NotificationListPanelTests: XCTestCase {
         XCTAssertGreaterThan(longRowH, shortRowH, "2-line message row must be taller than 1-line")
     }
 
-    func testRowHasTwoButtons() {
+    func testRowHasOneDismissButton() {
         let (panel, _) = showPanel(itemCount: 1)
         let rows = arrangedRows(in: panel)
 
         let buttons = rows.first?.subviews.compactMap { $0 as? NSButton } ?? []
-        XCTAssertEqual(buttons.count, 2, "Each row must have Open and Dismiss buttons")
+        XCTAssertEqual(buttons.count, 1, "Each row must have only a dismiss button")
+    }
+
+    func testRowClickFiresOnOpenAndDismisses() {
+        let panel = NotificationListPanel()
+        let store = NotificationStore()
+        let item = store.add(makePayload(message: "click me"))
+        let petWindow = NSWindow(
+            contentRect: NSRect(x: 100, y: 100, width: 80, height: 96),
+            styleMask: .borderless, backing: .buffered, defer: false
+        )
+        var openedItem: NotificationItem?
+        panel.show(store: store, relativeTo: petWindow, onUpdate: {}, onOpen: { openedItem = $0 })
+
+        let rows = arrangedRows(in: panel)
+        guard let row = rows.first else { return XCTFail("Expected one row") }
+
+        let clickEvent = NSEvent.mouseEvent(
+            with: .leftMouseDown, location: NSPoint(x: 10, y: 10),
+            modifierFlags: [], timestamp: 0, windowNumber: panel.windowNumber,
+            context: nil, eventNumber: 0, clickCount: 1, pressure: 1.0
+        )!
+        row.mouseDown(with: clickEvent)
+
+        XCTAssertEqual(openedItem?.id, item.id, "Click must fire onOpen with the item")
+        XCTAssertTrue(store.items.isEmpty, "Click must dismiss the item from the store")
     }
 
     func testDisplayTitleMapsNotificationType() {

@@ -41,6 +41,15 @@ final class ToastManagerTests: XCTestCase {
         XCTAssertLessThan(origin1.y, origin0.y)
     }
 
+    func testCancelFadeRemovesTimer() {
+        let manager = ToastManager()
+        let id = UUID()
+        manager.scheduleFadeForTest(id: id, delay: 10.0)
+        XCTAssertTrue(manager.hasPendingFade(for: id))
+        manager.cancelFadeForTest(id: id)
+        XCTAssertFalse(manager.hasPendingFade(for: id))
+    }
+
     func testHorizontalStackingUsesWidth() {
         let screenFrame = NSRect(x: 0, y: 0, width: 1440, height: 900)
         let petFrame = NSRect(x: 100, y: 100, width: 80, height: 80)

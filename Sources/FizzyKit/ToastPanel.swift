@@ -2,6 +2,8 @@ import AppKit
 
 public final class ToastPanel: NSPanel {
     var onClick: (() -> Void)?
+    var onHoverEnter: (() -> Void)?
+    var onHoverExit: (() -> Void)?
 
     public init(item: NotificationItem) {
         let w: CGFloat = 280
@@ -25,6 +27,8 @@ public final class ToastPanel: NSPanel {
 
         let container = ClickableToastView(frame: NSRect(x: 0, y: 0, width: w, height: h))
         container.onMouseDown = { [weak self] in self?.onClick?() }
+        container.onHoverEnter = { [weak self] in self?.onHoverEnter?() }
+        container.onHoverExit = { [weak self] in self?.onHoverExit?() }
 
         let background = NSVisualEffectView(frame: container.bounds)
         background.material = .hudWindow
@@ -46,10 +50,30 @@ public final class ToastPanel: NSPanel {
 
 private final class ClickableToastView: NSView {
     var onMouseDown: (() -> Void)?
+    var onHoverEnter: (() -> Void)?
+    var onHoverExit: (() -> Void)?
+    private var hoverTrackingArea: NSTrackingArea?
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func hitTest(_ point: NSPoint) -> NSView? { self }
 
     override func mouseDown(with event: NSEvent) {
         onMouseDown?()
     }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let existing = hoverTrackingArea { removeTrackingArea(existing) }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeAlways],
+            owner: self
+        )
+        addTrackingArea(area)
+        hoverTrackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) { onHoverEnter?() }
+    override func mouseExited(with event: NSEvent) { onHoverExit?() }
 }

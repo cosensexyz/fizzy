@@ -3,7 +3,10 @@ import AppKit
 public final class FizzyWindow: NSWindow {
     public let fizzyView = FizzyView()
     public var onPetClicked: (() -> Void)?
+    public var onPetHoverEnter: (() -> Void)?
+    public var onPetHoverExit: (() -> Void)?
     private var mouseDownOrigin: NSPoint?
+    private var hoverTrackingArea: NSTrackingArea?
 
     public init() {
         let size = NSSize(width: 80, height: 96)
@@ -28,6 +31,29 @@ public final class FizzyWindow: NSWindow {
 
         fizzyView.frame = NSRect(origin: .zero, size: size)
         contentView = fizzyView
+
+        updatePetTrackingArea()
+    }
+
+    private func updatePetTrackingArea() {
+        if let existing = hoverTrackingArea {
+            contentView?.removeTrackingArea(existing)
+        }
+        let area = NSTrackingArea(
+            rect: fizzyView.bounds,
+            options: [.mouseEnteredAndExited, .activeAlways],
+            owner: self
+        )
+        contentView?.addTrackingArea(area)
+        hoverTrackingArea = area
+    }
+
+    public override func mouseEntered(with event: NSEvent) {
+        onPetHoverEnter?()
+    }
+
+    public override func mouseExited(with event: NSEvent) {
+        onPetHoverExit?()
     }
 
     public override func mouseDown(with event: NSEvent) {
