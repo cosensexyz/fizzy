@@ -37,6 +37,7 @@ enum TerminalActivator {
         let env = item.env
         let cwd = item.notification.cwd
         let appName = app.localizedName
+        let pid = app.processIdentifier
 
         queue.async {
 
@@ -52,7 +53,7 @@ enum TerminalActivator {
             }
             DispatchQueue.main.async {
                 guard queue.sync(execute: { _inPreview }) else { return }
-                app.activate(options: [.activateIgnoringOtherApps])
+                NSRunningApplication(processIdentifier: pid)?.activate(options: [])
             }
         }
         return true
@@ -89,7 +90,7 @@ enum TerminalActivator {
                 _savedPaneSocket = nil
             }
             DispatchQueue.main.async {
-                appToRestore?.activate(options: [.activateIgnoringOtherApps])
+                appToRestore?.activate(options: [])
             }
         }
     }
@@ -108,6 +109,7 @@ enum TerminalActivator {
         let appName = app.localizedName
         let env = item.env
         let cwd = item.notification.cwd
+        let pid = app.processIdentifier
 
         queue.async {
             if let pane = env.tmuxPane {
@@ -120,7 +122,7 @@ enum TerminalActivator {
             }
 
             DispatchQueue.main.async {
-                app.activate(options: [])
+                NSRunningApplication(processIdentifier: pid)?.activate(options: [])
             }
         }
     }

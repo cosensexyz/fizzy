@@ -44,8 +44,9 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
         menuBar = MenuBarController()
 
         server = FizzyServer(port: 7319) { [weak self] agent, payload, env in
+            guard let self else { return }
             DispatchQueue.main.async {
-                self?.handleNotification(agent: agent, payload: payload, env: env)
+                self.handleNotification(agent: agent, payload: payload, env: env)
             }
         }
 
