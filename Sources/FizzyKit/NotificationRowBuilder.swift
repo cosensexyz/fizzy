@@ -106,9 +106,14 @@ enum NotificationRowBuilder {
         message.frame = NSRect(x: 42, y: layout.messageY, width: messageWidth, height: layout.messageH)
         container.addSubview(message)
 
-        // Project name · notification_type
+        // Project name (branch) · notification_type
         let projectName = URL(fileURLWithPath: item.notification.cwd).lastPathComponent
-        let projectLabel = NSTextField(labelWithString: "\(projectName) \u{00B7} \(displayTitle(for: item.notification.notificationType))")
+        var projectText = projectName
+        if let branch = item.env.gitBranch {
+            projectText += " (\(branch))"
+        }
+        projectText += " \u{00B7} \(displayTitle(for: item.notification.notificationType))"
+        let projectLabel = NSTextField(labelWithString: projectText)
         projectLabel.font = .systemFont(ofSize: 10)
         projectLabel.textColor = .white.withAlphaComponent(0.25)
         projectLabel.frame = NSRect(x: 42, y: layout.projectY, width: messageWidth, height: Layout.projectH)

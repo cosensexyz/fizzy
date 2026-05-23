@@ -41,9 +41,9 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
 
         menuBar = MenuBarController()
 
-        server = FizzyServer(port: 7319) { [weak self] notification in
+        server = FizzyServer(port: 7319) { [weak self] agent, payload, env in
             DispatchQueue.main.async {
-                self?.handleNotification(notification)
+                self?.handleNotification(agent: agent, payload: payload, env: env)
             }
         }
 
@@ -55,10 +55,12 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func handleNotification(_ notification: ClaudeCodeNotification) {
-        let item = store.add(notification)
+    private func handleNotification(agent: String, payload: any AgentPayload, env: EnvironmentContext) {
+        let item = store.add(payload, agent: agent, env: env)
         window.updateFizzyState(unreadCount: store.unreadCount)
-        toastManager.show(item: item, relativeTo: window)
+        toastManager.show(item: item, relativeTo: window) { [weak self] item in
+            self?.openSession(item)
+        }
     }
 
     @objc private func windowDidMove(_ notification: Notification) {
@@ -101,26 +103,11 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
     }
 
     private func openSession(_ item: NotificationItem) {
-        activateTerminal()
+        TerminalActivator.activate(for: item)
     }
 
     private func updateFizzyState() {
         window.updateFizzyState(unreadCount: store.unreadCount)
-    }
-
-    private func activateTerminal() {
-        let terminalBundleIds = [
-            "com.mitchellh.ghostty",
-            "com.googlecode.iterm2",
-            "com.apple.Terminal",
-        ]
-        let running = NSWorkspace.shared.runningApplications
-        for bundleId in terminalBundleIds {
-            if let app = running.first(where: { $0.bundleIdentifier == bundleId && !$0.isTerminated }) {
-                app.activate()
-                return
-            }
-        }
     }
 
     public func applicationWillTerminate(_ notification: Notification) {

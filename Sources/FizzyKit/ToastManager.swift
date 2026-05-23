@@ -9,8 +9,12 @@ public final class ToastManager {
 
     public init() {}
 
-    public func show(item: NotificationItem, relativeTo petWindow: NSWindow) {
+    public func show(item: NotificationItem, relativeTo petWindow: NSWindow, onClick: ((NotificationItem) -> Void)? = nil) {
         let panel = ToastPanel(item: item)
+        panel.onClick = { [weak self] in
+            self?.dismiss(id: item.id)
+            onClick?(item)
+        }
 
         let petFrame = petWindow.frame
         let screenFrame = petWindow.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero
@@ -29,6 +33,13 @@ public final class ToastManager {
         activeToasts.append(entry)
 
         scheduleFade(id: item.id, panel: panel, delay: 4.0)
+    }
+
+    private func dismiss(id: UUID) {
+        guard let index = activeToasts.firstIndex(where: { $0.id == id }) else { return }
+        let panel = activeToasts[index].panel
+        activeToasts.remove(at: index)
+        panel.orderOut(nil)
     }
 
     private func scheduleFade(id: UUID, panel: ToastPanel, delay: TimeInterval) {

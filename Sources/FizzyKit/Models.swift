@@ -1,6 +1,17 @@
 import Foundation
 
-public struct ClaudeCodeNotification: Codable, Sendable {
+// MARK: - AgentPayload protocol
+
+public protocol AgentPayload: Codable, Sendable {
+    var message: String { get }
+    var cwd: String { get }
+    var notificationType: String { get }
+    var title: String? { get }
+}
+
+// MARK: - Claude Code payload
+
+public struct ClaudeCodePayload: AgentPayload {
     public let sessionId: String
     public let transcriptPath: String
     public let cwd: String
@@ -34,6 +45,96 @@ public struct ClaudeCodeNotification: Codable, Sendable {
     }
 }
 
+// MARK: - Generic payload (fallback for unknown agents)
+
+public struct GenericPayload: AgentPayload {
+    public let message: String
+    public let cwd: String
+    public let notificationType: String
+    public let title: String?
+
+    enum CodingKeys: String, CodingKey {
+        case message, cwd
+        case notificationType = "notification_type"
+        case title
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        message = try container.decode(String.self, forKey: .message)
+        cwd = try container.decode(String.self, forKey: .cwd)
+        notificationType = try container.decodeIfPresent(String.self, forKey: .notificationType) ?? "notification"
+        title = try container.decodeIfPresent(String.self, forKey: .title)
+    }
+
+    public init(message: String, cwd: String, notificationType: String = "notification", title: String? = nil) {
+        self.message = message
+        self.cwd = cwd
+        self.notificationType = notificationType
+        self.title = title
+    }
+}
+
+// MARK: - Environment context (collected by hook script)
+
+public struct EnvironmentContext: Codable, Sendable {
+    public let terminalPid: Int?
+    public let tmuxPane: String?
+    public let tmuxSocketPath: String?
+    public let gitBranch: String?
+
+    enum CodingKeys: String, CodingKey {
+        case terminalPid = "terminal_pid"
+        case tmuxPane = "tmux_pane"
+        case tmuxSocketPath = "tmux_socket_path"
+        case gitBranch = "git_branch"
+    }
+
+    public init(
+        terminalPid: Int? = nil, tmuxPane: String? = nil,
+        tmuxSocketPath: String? = nil, gitBranch: String? = nil
+    ) {
+        self.terminalPid = terminalPid
+        self.tmuxPane = tmuxPane
+        self.tmuxSocketPath = tmuxSocketPath
+        self.gitBranch = gitBranch
+    }
+}
+
+// MARK: - FizzyNotification envelope
+
+public struct FizzyNotification: Sendable {
+    public let agent: String
+    public let payload: any AgentPayload
+    public let env: EnvironmentContext
+
+    enum CodingKeys: String, CodingKey {
+        case agent, payload, env
+    }
+
+    public init(agent: String, payload: any AgentPayload, env: EnvironmentContext = EnvironmentContext()) {
+        self.agent = agent
+        self.payload = payload
+        self.env = env
+    }
+}
+
+extension FizzyNotification: Decodable {
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        agent = try container.decode(String.self, forKey: .agent)
+        env = try container.decodeIfPresent(EnvironmentContext.self, forKey: .env) ?? EnvironmentContext()
+        switch agent {
+        case "claude_code":
+            payload = try container.decode(ClaudeCodePayload.self, forKey: .payload)
+        default:
+            payload = try container.decode(GenericPayload.self, forKey: .payload)
+        }
+    }
+}
+
+// MARK: - Notification response (unchanged)
+
 public struct NotificationResponse: Codable, Sendable {
     public let shouldContinue: Bool
     public var hookSpecificOutput: HookSpecificOutput?
@@ -59,15 +160,26 @@ public struct NotificationResponse: Codable, Sendable {
     }
 }
 
+// MARK: - NotificationItem
+
 public struct NotificationItem: Identifiable, Sendable {
     public let id: UUID
-    public let notification: ClaudeCodeNotification
+    public let agent: String
+    public let notification: any AgentPayload
+    public let env: EnvironmentContext
     public let arrivedAt: Date
     public var isRead: Bool
 
-    public init(notification: ClaudeCodeNotification, arrivedAt: Date = Date()) {
+    public init(
+        agent: String = "claude_code",
+        notification: any AgentPayload,
+        env: EnvironmentContext = EnvironmentContext(),
+        arrivedAt: Date = Date()
+    ) {
         self.id = UUID()
+        self.agent = agent
         self.notification = notification
+        self.env = env
         self.arrivedAt = arrivedAt
         self.isRead = false
     }

@@ -2,13 +2,10 @@ import XCTest
 @testable import FizzyKit
 
 final class NotificationListPanelTests: XCTestCase {
-    private func makeNotification(message: String = "test") -> ClaudeCodeNotification {
-        ClaudeCodeNotification(
-            sessionId: "s1",
-            transcriptPath: "/tmp/t",
-            cwd: "/tmp/project",
-            hookEventName: "Notification",
-            message: message,
+    private func makePayload(message: String = "test") -> ClaudeCodePayload {
+        ClaudeCodePayload(
+            sessionId: "s1", transcriptPath: "/tmp/t", cwd: "/tmp/project",
+            hookEventName: "Notification", message: message,
             notificationType: "idle_prompt"
         )
     }
@@ -17,7 +14,7 @@ final class NotificationListPanelTests: XCTestCase {
         let panel = NotificationListPanel()
         let store = NotificationStore()
         for i in 1...itemCount {
-            _ = store.add(makeNotification(message: "msg \(i)"))
+            _ = store.add(makePayload(message: "msg \(i)"))
         }
         let petWindow = NSWindow(
             contentRect: NSRect(x: 100, y: 100, width: 80, height: 96),
@@ -49,8 +46,8 @@ final class NotificationListPanelTests: XCTestCase {
     func testShortMessageProducesShorterRow() {
         let panel = NotificationListPanel()
         let store = NotificationStore()
-        _ = store.add(makeNotification(message: "short"))
-        _ = store.add(makeNotification(message: "This is a much longer message that should wrap to two lines in the notification list"))
+        _ = store.add(makePayload(message: "short"))
+        _ = store.add(makePayload(message: "This is a much longer message that should wrap to two lines in the notification list"))
         let petWindow = NSWindow(
             contentRect: NSRect(x: 100, y: 100, width: 80, height: 96),
             styleMask: .borderless, backing: .buffered, defer: false
@@ -102,9 +99,7 @@ final class NotificationListPanelTests: XCTestCase {
         let (panel, store) = showPanel(itemCount: 3)
         let unreadBefore = store.unreadCount
 
-        // Simulate what handleHoverEnter does — it should NOT change unread count
-        // (hover only shows detail, no markRead)
-        _ = panel // keep panel alive
+        _ = panel
         XCTAssertEqual(store.unreadCount, unreadBefore, "Hover must not mark items as read")
     }
 }

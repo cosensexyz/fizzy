@@ -1,6 +1,8 @@
 import AppKit
 
 public final class ToastPanel: NSPanel {
+    var onClick: (() -> Void)?
+
     public init(item: NotificationItem) {
         let w: CGFloat = 280
         let messageWidth: CGFloat = w - 42 - 10
@@ -21,7 +23,8 @@ public final class ToastPanel: NSPanel {
         hasShadow = true
         appearance = NSAppearance(named: .darkAqua)
 
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: w, height: h))
+        let container = ClickableToastView(frame: NSRect(x: 0, y: 0, width: w, height: h))
+        container.onMouseDown = { [weak self] in self?.onClick?() }
 
         let background = NSVisualEffectView(frame: container.bounds)
         background.material = .hudWindow
@@ -38,5 +41,15 @@ public final class ToastPanel: NSPanel {
         )
 
         contentView = container
+    }
+}
+
+private final class ClickableToastView: NSView {
+    var onMouseDown: (() -> Void)?
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        onMouseDown?()
     }
 }

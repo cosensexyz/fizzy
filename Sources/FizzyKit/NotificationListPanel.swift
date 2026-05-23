@@ -275,7 +275,8 @@ public final class NotificationListPanel: NSPanel {
 
         let n = item.notification
         let titleText = n.title ?? NotificationRowBuilder.displayTitle(for: n.notificationType)
-        let transcript = TranscriptReader.lastAssistantMessage(at: n.transcriptPath)
+        let claudePayload = n as? ClaudeCodePayload
+        let transcript = claudePayload.flatMap { TranscriptReader.lastAssistantMessage(at: $0.transcriptPath) }
 
         // Measure variable-height text blocks
         let msgH = Self.measureText(n.message, font: messageFont, width: contentW)
@@ -286,9 +287,20 @@ public final class NotificationListPanel: NSPanel {
         }
         let transcriptVisibleH = min(transcriptH, maxTranscriptVisible)
 
+        var metaRows: [(String, String)] = [
+            ("Type", n.notificationType),
+        ]
+        if let branch = item.env.gitBranch {
+            metaRows.append(("Branch", branch))
+        }
+        if let claude = n as? ClaudeCodePayload {
+            metaRows.append(("Session", String(claude.sessionId.prefix(12))))
+        }
+        metaRows.append(("CWD", n.cwd))
+
         // Height: header(30) + div(1) + msgPad(8) + msg + pad(8) + div(1) + metaPad(6)
-        //       + 3 rows(14*3) + 2 gaps(3*2) + pad(6) + [transcript section] + bottom(10)
-        var dh: CGFloat = 30 + 1 + 8 + msgH + 8 + 1 + 6 + 14 * 3 + 3 * 2 + 6 + 10
+        //       + rows(14*N) + gaps(3*(N-1)) + pad(6) + [transcript section] + bottom(10)
+        var dh: CGFloat = 30 + 1 + 8 + msgH + 8 + 1 + 6 + CGFloat(metaRows.count) * 14 + CGFloat(metaRows.count - 1) * 3 + 6 + 10
         if transcript != nil {
             dh += 1 + 6 + 14 + 3 + transcriptVisibleH + 4
         }
@@ -358,11 +370,6 @@ public final class NotificationListPanel: NSPanel {
 
         // --- Metadata rows ---
         y -= 6
-        let metaRows: [(String, String)] = [
-            ("Type", n.notificationType),
-            ("Session", String(n.sessionId.prefix(12))),
-            ("CWD", n.cwd),
-        ]
         for (label, value) in metaRows {
             y -= 14
             addMetaRow(label: label, value: value, at: y, pad: pad, contentW: contentW,

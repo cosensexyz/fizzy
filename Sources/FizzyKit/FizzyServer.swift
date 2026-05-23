@@ -7,9 +7,9 @@ public final class FizzyServer: @unchecked Sendable {
     private let port: Int
     private let group: MultiThreadedEventLoopGroup
     private var channel: Channel?
-    private let onNotification: @Sendable (ClaudeCodeNotification) -> Void
+    private let onNotification: @Sendable (String, any AgentPayload, EnvironmentContext) -> Void
 
-    public init(port: Int, onNotification: @escaping @Sendable (ClaudeCodeNotification) -> Void) {
+    public init(port: Int, onNotification: @escaping @Sendable (String, any AgentPayload, EnvironmentContext) -> Void) {
         self.port = port
         self.group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
         self.onNotification = onNotification
@@ -41,11 +41,11 @@ private final class RequestHandler: ChannelInboundHandler, RemovableChannelHandl
     typealias InboundIn = HTTPServerRequestPart
     typealias OutboundOut = HTTPServerResponsePart
 
-    private let onNotification: @Sendable (ClaudeCodeNotification) -> Void
+    private let onNotification: @Sendable (String, any AgentPayload, EnvironmentContext) -> Void
     private var requestHead: HTTPRequestHead?
     private var body = ByteBuffer()
 
-    init(onNotification: @escaping @Sendable (ClaudeCodeNotification) -> Void) {
+    init(onNotification: @escaping @Sendable (String, any AgentPayload, EnvironmentContext) -> Void) {
         self.onNotification = onNotification
     }
 
@@ -62,9 +62,7 @@ private final class RequestHandler: ChannelInboundHandler, RemovableChannelHandl
     }
 
     private func processRequest(context: ChannelHandlerContext) {
-        guard let head = requestHead,
-              head.method == .POST,
-              head.uri == "/claudecode/notification" else {
+        guard let head = requestHead, head.method == .POST else {
             respond(context: context, status: .notFound, json: #"{"error":"not found"}"#)
             return
         }
@@ -74,13 +72,27 @@ private final class RequestHandler: ChannelInboundHandler, RemovableChannelHandl
             return
         }
         let bodyData = Data(bytes)
-        guard let notification = try? JSONDecoder().decode(ClaudeCodeNotification.self, from: bodyData) else {
-            respond(context: context, status: .badRequest, json: #"{"error":"invalid request"}"#)
-            return
-        }
 
-        onNotification(notification)
-        respond(context: context, status: .ok, json: #"{"continue":true}"#)
+        switch head.uri {
+        case "/notification":
+            guard let notification = try? JSONDecoder().decode(FizzyNotification.self, from: bodyData) else {
+                respond(context: context, status: .badRequest, json: #"{"error":"invalid request"}"#)
+                return
+            }
+            respond(context: context, status: .ok, json: #"{"continue":true}"#)
+            onNotification(notification.agent, notification.payload, notification.env)
+
+        case "/claudecode/notification":
+            guard let payload = try? JSONDecoder().decode(ClaudeCodePayload.self, from: bodyData) else {
+                respond(context: context, status: .badRequest, json: #"{"error":"invalid request"}"#)
+                return
+            }
+            respond(context: context, status: .ok, json: #"{"continue":true}"#)
+            onNotification("claude_code", payload, EnvironmentContext())
+
+        default:
+            respond(context: context, status: .notFound, json: #"{"error":"not found"}"#)
+        }
     }
 
     private func respond(context: ChannelHandlerContext, status: HTTPResponseStatus, json: String) {

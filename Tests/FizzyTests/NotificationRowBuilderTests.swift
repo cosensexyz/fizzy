@@ -5,13 +5,17 @@ final class NotificationRowBuilderTests: XCTestCase {
     private func makeItem(
         message: String = "test msg",
         notificationType: String = "idle_prompt",
-        title: String? = nil
+        title: String? = nil,
+        gitBranch: String? = nil
     ) -> NotificationItem {
-        NotificationItem(notification: ClaudeCodeNotification(
-            sessionId: "s1", transcriptPath: "/tmp/t", cwd: "/tmp/project",
-            hookEventName: "Notification", message: message,
-            notificationType: notificationType, title: title
-        ))
+        NotificationItem(
+            notification: ClaudeCodePayload(
+                sessionId: "s1", transcriptPath: "/tmp/t", cwd: "/tmp/project",
+                hookEventName: "Notification", message: message,
+                notificationType: notificationType, title: title
+            ),
+            env: EnvironmentContext(gitBranch: gitBranch)
+        )
     }
 
     func testDisplayTitleUsesPayloadTitleWhenPresent() {
@@ -63,6 +67,44 @@ final class NotificationRowBuilderTests: XCTestCase {
         XCTAssertTrue(
             projectLabel!.stringValue.contains("Permission Prompt"),
             "Project line '\(projectLabel!.stringValue)' should contain formatted notification type"
+        )
+    }
+
+    func testProjectLineIncludesGitBranch() {
+        let item = makeItem(gitBranch: "feature/foo")
+        let row = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 80))
+        let layout = NotificationRowBuilder.Layout(message: item.notification.message, width: 202)
+
+        NotificationRowBuilder.buildContent(
+            item: item, in: row, layout: layout,
+            messageWidth: 202, isRead: false
+        )
+
+        let projectLabel = row.subviews.compactMap { $0 as? NSTextField }
+            .first { $0.font == .systemFont(ofSize: 10)
+                     && $0.stringValue.contains("project") }
+        XCTAssertTrue(
+            projectLabel!.stringValue.contains("feature/foo"),
+            "Project line '\(projectLabel!.stringValue)' should contain git branch"
+        )
+    }
+
+    func testProjectLineOmitsBranchWhenNil() {
+        let item = makeItem(gitBranch: nil)
+        let row = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 80))
+        let layout = NotificationRowBuilder.Layout(message: item.notification.message, width: 202)
+
+        NotificationRowBuilder.buildContent(
+            item: item, in: row, layout: layout,
+            messageWidth: 202, isRead: false
+        )
+
+        let projectLabel = row.subviews.compactMap { $0 as? NSTextField }
+            .first { $0.font == .systemFont(ofSize: 10)
+                     && $0.stringValue.contains("project") }
+        XCTAssertFalse(
+            projectLabel!.stringValue.contains("("),
+            "Project line should not contain parentheses when branch is nil"
         )
     }
 }

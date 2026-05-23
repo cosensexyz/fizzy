@@ -10,8 +10,12 @@ public final class NotificationStore {
     public init() {}
 
     @discardableResult
-    public func add(_ notification: ClaudeCodeNotification) -> NotificationItem {
-        let item = NotificationItem(notification: notification)
+    public func add(
+        _ notification: any AgentPayload,
+        agent: String = "claude_code",
+        env: EnvironmentContext = EnvironmentContext()
+    ) -> NotificationItem {
+        let item = NotificationItem(agent: agent, notification: notification, env: env)
         items.insert(item, at: 0)
         return item
     }
