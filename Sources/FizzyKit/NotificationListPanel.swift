@@ -311,8 +311,8 @@ public final class NotificationListPanel: NSPanel {
         if let branch = item.env.gitBranch {
             metaRows.append(("Branch", branch))
         }
-        if let claude = n as? ClaudeCodePayload {
-            metaRows.append(("Session", String(claude.sessionId.prefix(12))))
+        if let claude = n as? ClaudeCodePayload, let sid = claude.sessionId {
+            metaRows.append(("Session", String(sid.prefix(12))))
         }
         metaRows.append(("CWD", n.cwd))
 

@@ -2,9 +2,9 @@ import XCTest
 @testable import FizzyKit
 
 final class NotificationStoreTests: XCTestCase {
-    private func makePayload(message: String = "test") -> ClaudeCodePayload {
+    private func makePayload(message: String = "test", sessionId: String = "s1") -> ClaudeCodePayload {
         ClaudeCodePayload(
-            sessionId: "s1", transcriptPath: "/tmp/t", cwd: "/tmp/project",
+            sessionId: sessionId, transcriptPath: "/tmp/t", cwd: "/tmp/project",
             hookEventName: "Notification", message: message,
             notificationType: "idle_prompt"
         )
@@ -12,8 +12,8 @@ final class NotificationStoreTests: XCTestCase {
 
     func testAddPrependsItem() {
         let store = NotificationStore()
-        let item = store.add(makePayload(message: "first"))
-        _ = store.add(makePayload(message: "second"))
+        let item = store.add(makePayload(message: "first", sessionId: "s1"))
+        _ = store.add(makePayload(message: "second", sessionId: "s2"))
 
         XCTAssertEqual(store.items.count, 2)
         XCTAssertEqual(store.items[0].notification.message, "second")
@@ -22,8 +22,8 @@ final class NotificationStoreTests: XCTestCase {
 
     func testUnreadCount() {
         let store = NotificationStore()
-        _ = store.add(makePayload())
-        _ = store.add(makePayload())
+        _ = store.add(makePayload(sessionId: "s1"))
+        _ = store.add(makePayload(sessionId: "s2"))
 
         XCTAssertEqual(store.unreadCount, 2)
     }
@@ -40,8 +40,8 @@ final class NotificationStoreTests: XCTestCase {
 
     func testDismiss() {
         let store = NotificationStore()
-        let item = store.add(makePayload())
-        _ = store.add(makePayload())
+        let item = store.add(makePayload(message: "first", sessionId: "s1"))
+        _ = store.add(makePayload(message: "second", sessionId: "s2"))
 
         store.dismiss(id: item.id)
 
@@ -50,11 +50,12 @@ final class NotificationStoreTests: XCTestCase {
 
     func testMarkAllRead() {
         let store = NotificationStore()
-        _ = store.add(makePayload())
-        _ = store.add(makePayload())
+        _ = store.add(makePayload(sessionId: "s1"))
+        _ = store.add(makePayload(sessionId: "s2"))
 
         store.markAllRead()
 
+        XCTAssertEqual(store.items.count, 2)
         XCTAssertEqual(store.unreadCount, 0)
     }
 
@@ -65,5 +66,42 @@ final class NotificationStoreTests: XCTestCase {
 
         XCTAssertEqual(item.agent, "claude_code")
         XCTAssertEqual(item.env.gitBranch, "main")
+    }
+
+    func testAddDedupsBySessionId() {
+        let store = NotificationStore()
+        _ = store.add(makePayload(message: "first", sessionId: "s1"))
+        _ = store.add(makePayload(message: "second", sessionId: "s1"))
+
+        XCTAssertEqual(store.items.count, 1)
+        XCTAssertEqual(store.items[0].notification.message, "second")
+    }
+
+    func testAddDoesNotDedupDifferentSessions() {
+        let store = NotificationStore()
+        _ = store.add(makePayload(message: "first", sessionId: "s1"))
+        _ = store.add(makePayload(message: "second", sessionId: "s2"))
+
+        XCTAssertEqual(store.items.count, 2)
+    }
+
+    func testAddDoesNotDedupGenericPayload() {
+        let store = NotificationStore()
+        let first = GenericPayload(message: "first", cwd: "/tmp")
+        let second = GenericPayload(message: "second", cwd: "/tmp")
+        _ = store.add(first)
+        _ = store.add(second)
+
+        XCTAssertEqual(store.items.count, 2)
+    }
+
+    func testDedupNewItemIsUnread() {
+        let store = NotificationStore()
+        let item1 = store.add(makePayload(message: "first", sessionId: "s1"))
+        store.markRead(id: item1.id)
+        _ = store.add(makePayload(message: "second", sessionId: "s1"))
+
+        XCTAssertFalse(store.items[0].isRead)
+        XCTAssertEqual(store.unreadCount, 1)
     }
 }

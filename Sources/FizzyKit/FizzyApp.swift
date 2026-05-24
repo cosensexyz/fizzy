@@ -44,9 +44,8 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
         menuBar = MenuBarController()
 
         server = FizzyServer(port: 7319) { [weak self] agent, payload, env in
-            guard let self else { return }
-            DispatchQueue.main.async {
-                self.handleNotification(agent: agent, payload: payload, env: env)
+            DispatchQueue.main.async { [weak self] in
+                self?.handleNotification(agent: agent, payload: payload, env: env)
             }
         }
 
@@ -68,6 +67,7 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
     }
 
     @objc private func windowDidMove(_ notification: Notification) {
+        window.saveOrigin()
         guard listVisible, !isRepositioning else { return }
         isRepositioning = true
         listPanel.setFrameOrigin(NSPoint(

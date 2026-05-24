@@ -1,6 +1,9 @@
 import AppKit
 
 public final class FizzyWindow: NSWindow {
+    static let windowSize = NSSize(width: 80, height: 96)
+    static let originKey = "FizzyWindowOrigin"
+
     public let fizzyView = FizzyView()
     public var onPetClicked: (() -> Void)?
     public var onPetHoverEnter: (() -> Void)?
@@ -8,13 +11,29 @@ public final class FizzyWindow: NSWindow {
     private var mouseDownOrigin: NSPoint?
     private var hoverTrackingArea: NSTrackingArea?
 
+    public static func savedOrigin() -> NSPoint? {
+        guard let data = UserDefaults.standard.data(forKey: originKey),
+              let coords = try? JSONDecoder().decode([CGFloat].self, from: data),
+              coords.count == 2 else { return nil }
+        let point = NSPoint(x: coords[0], y: coords[1])
+        let windowRect = NSRect(origin: point, size: windowSize)
+        let onScreen = NSScreen.screens.contains { $0.visibleFrame.intersects(windowRect) }
+        return onScreen ? point : nil
+    }
+
+    public func saveOrigin() {
+        let data = try? JSONEncoder().encode([frame.origin.x, frame.origin.y])
+        UserDefaults.standard.set(data, forKey: FizzyWindow.originKey)
+    }
+
     public init() {
-        let size = NSSize(width: 80, height: 96)
+        let size = FizzyWindow.windowSize
         let screenFrame = NSScreen.main?.visibleFrame ?? .zero
-        let origin = NSPoint(
+        let defaultOrigin = NSPoint(
             x: screenFrame.maxX - size.width - 48,
             y: screenFrame.minY + 48
         )
+        let origin = FizzyWindow.savedOrigin() ?? defaultOrigin
         super.init(
             contentRect: NSRect(origin: origin, size: size),
             styleMask: .borderless,
@@ -73,5 +92,17 @@ public final class FizzyWindow: NSWindow {
 
     public func updateFizzyState(unreadCount: Int) {
         fizzyView.state = unreadCount > 0 ? .active(unreadCount: unreadCount) : .idle
+    }
+
+    public func contextMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.addItem(withTitle: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
+        return menu
+    }
+
+    public override func rightMouseDown(with event: NSEvent) {
+        let menu = contextMenu()
+        let location = event.locationInWindow
+        menu.popUp(positioning: nil, at: location, in: contentView)
     }
 }

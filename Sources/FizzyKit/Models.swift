@@ -7,12 +7,17 @@ public protocol AgentPayload: Codable, Sendable {
     var cwd: String { get }
     var notificationType: String { get }
     var title: String? { get }
+    var sessionId: String? { get }
+}
+
+extension AgentPayload {
+    public var sessionId: String? { nil }
 }
 
 // MARK: - Claude Code payload
 
 public struct ClaudeCodePayload: AgentPayload {
-    public let sessionId: String
+    public let sessionId: String?
     public let transcriptPath: String
     public let cwd: String
     public let hookEventName: String
@@ -31,7 +36,7 @@ public struct ClaudeCodePayload: AgentPayload {
     }
 
     public init(
-        sessionId: String, transcriptPath: String, cwd: String,
+        sessionId: String? = nil, transcriptPath: String, cwd: String,
         hookEventName: String, message: String, notificationType: String,
         title: String? = nil
     ) {

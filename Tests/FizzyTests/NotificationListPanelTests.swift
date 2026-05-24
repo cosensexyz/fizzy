@@ -2,9 +2,9 @@ import XCTest
 @testable import FizzyKit
 
 final class NotificationListPanelTests: XCTestCase {
-    private func makePayload(message: String = "test") -> ClaudeCodePayload {
+    private func makePayload(message: String = "test", sessionId: String = "s1") -> ClaudeCodePayload {
         ClaudeCodePayload(
-            sessionId: "s1", transcriptPath: "/tmp/t", cwd: "/tmp/project",
+            sessionId: sessionId, transcriptPath: "/tmp/t", cwd: "/tmp/project",
             hookEventName: "Notification", message: message,
             notificationType: "idle_prompt"
         )
@@ -14,7 +14,7 @@ final class NotificationListPanelTests: XCTestCase {
         let panel = NotificationListPanel()
         let store = NotificationStore()
         for i in 1...itemCount {
-            _ = store.add(makePayload(message: "msg \(i)"))
+            _ = store.add(makePayload(message: "msg \(i)", sessionId: "s\(i)"))
         }
         let petWindow = NSWindow(
             contentRect: NSRect(x: 100, y: 100, width: 80, height: 96),
@@ -50,8 +50,8 @@ final class NotificationListPanelTests: XCTestCase {
     func testShortMessageProducesShorterRow() {
         let panel = NotificationListPanel()
         let store = NotificationStore()
-        _ = store.add(makePayload(message: "short"))
-        _ = store.add(makePayload(message: "This is a much longer message that should wrap to two lines in the notification list"))
+        _ = store.add(makePayload(message: "short", sessionId: "s1"))
+        _ = store.add(makePayload(message: "This is a much longer message that should wrap to two lines in the notification list", sessionId: "s2"))
         let petWindow = NSWindow(
             contentRect: NSRect(x: 100, y: 100, width: 80, height: 96),
             styleMask: .borderless, backing: .buffered, defer: false

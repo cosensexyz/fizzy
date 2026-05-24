@@ -51,9 +51,11 @@ enum TerminalActivator {
                     raiseWindow(matching: dirName, appName: appName)
                 }
             }
+            let paneRect = PreviewOverlay.resolvePaneRect(for: item, pid: pid)
             DispatchQueue.main.async {
                 guard queue.sync(execute: { _inPreview }) else { return }
                 NSRunningApplication(processIdentifier: pid)?.activate(options: [])
+                if let paneRect { PreviewOverlay.show(paneRect: paneRect) }
             }
         }
         return true
@@ -64,6 +66,7 @@ enum TerminalActivator {
         let cwd = item.notification.cwd
         let app = resolveTerminalApp(for: item)
         let appName = app?.localizedName
+        let pid = app?.processIdentifier ?? 0
 
         queue.async {
             if let pane = env.tmuxPane {
@@ -73,6 +76,10 @@ enum TerminalActivator {
                 if let appName {
                     raiseWindow(matching: dirName, appName: appName)
                 }
+            }
+            let paneRect = PreviewOverlay.resolvePaneRect(for: item, pid: pid)
+            DispatchQueue.main.async {
+                if let paneRect { PreviewOverlay.update(paneRect: paneRect) }
             }
         }
     }
@@ -90,6 +97,7 @@ enum TerminalActivator {
                 _savedPaneSocket = nil
             }
             DispatchQueue.main.async {
+                PreviewOverlay.hide()
                 appToRestore?.activate(options: [])
             }
         }

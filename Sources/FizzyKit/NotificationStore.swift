@@ -15,6 +15,9 @@ public final class NotificationStore {
         agent: String = "claude_code",
         env: EnvironmentContext = EnvironmentContext()
     ) -> NotificationItem {
+        if let sid = notification.sessionId {
+            items.removeAll { $0.notification.sessionId == sid }
+        }
         let item = NotificationItem(agent: agent, notification: notification, env: env)
         items.insert(item, at: 0)
         return item
