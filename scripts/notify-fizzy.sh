@@ -44,9 +44,15 @@ fi
 # tmux context
 if [ -n "${TMUX_PANE:-}" ] && [ -n "${TMUX:-}" ]; then
     socket_path=$(echo "$TMUX" | cut -d, -f1)
+    session_name=$(tmux display-message -p '#{session_name}' 2>/dev/null || true)
+    client_tty=$(tmux display-message -p '#{client_tty}' 2>/dev/null || true)
     env_json=$(printf '%s' "$env_json" | jq \
         --arg pane "$TMUX_PANE" --arg socket "$socket_path" \
         '. + {tmux_pane: $pane, tmux_socket_path: $socket}')
+    [ -n "$session_name" ] && \
+        env_json=$(printf '%s' "$env_json" | jq --arg s "$session_name" '. + {tmux_session_name: $s}')
+    [ -n "$client_tty" ] && \
+        env_json=$(printf '%s' "$env_json" | jq --arg t "$client_tty" '. + {tmux_client_tty: $t}')
 fi
 
 # git branch
