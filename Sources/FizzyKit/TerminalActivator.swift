@@ -37,11 +37,15 @@ enum TerminalActivator {
         let env = item.env
         let cwd = item.notification.cwd
         let appName = app.localizedName
+        let bundleId = app.bundleIdentifier
         let pid = app.processIdentifier
 
         queue.async {
 
             if let pane = env.tmuxPane {
+                if let bundleId {
+                    selectTerminalTab(bundleId: bundleId, env: env, cwd: cwd)
+                }
                 _savedPaneId = currentTmuxPane(socketPath: env.tmuxSocketPath)
                 _savedPaneSocket = env.tmuxSocketPath
                 selectTmuxPane(pane, socketPath: env.tmuxSocketPath)
@@ -66,10 +70,14 @@ enum TerminalActivator {
         let cwd = item.notification.cwd
         let app = resolveTerminalApp(for: item)
         let appName = app?.localizedName
+        let bundleId = app?.bundleIdentifier
         let pid = app?.processIdentifier ?? 0
 
         queue.async {
             if let pane = env.tmuxPane {
+                if let bundleId {
+                    selectTerminalTab(bundleId: bundleId, env: env, cwd: cwd)
+                }
                 selectTmuxPane(pane, socketPath: env.tmuxSocketPath)
             } else {
                 let dirName = URL(fileURLWithPath: cwd).lastPathComponent
@@ -118,12 +126,16 @@ enum TerminalActivator {
     static func activate(for item: NotificationItem) {
         guard let app = resolveTerminalApp(for: item) else { return }
         let appName = app.localizedName
+        let bundleId = app.bundleIdentifier
         let env = item.env
         let cwd = item.notification.cwd
         let pid = app.processIdentifier
 
         queue.async {
             if let pane = env.tmuxPane {
+                if let bundleId {
+                    selectTerminalTab(bundleId: bundleId, env: env, cwd: cwd)
+                }
                 selectTmuxPane(pane, socketPath: env.tmuxSocketPath)
             } else {
                 let dirName = URL(fileURLWithPath: cwd).lastPathComponent
