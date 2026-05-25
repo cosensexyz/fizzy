@@ -209,16 +209,8 @@ enum TerminalActivator {
     }
 
     private static func raiseWindow(matching dirName: String, appName: String) {
-        let safeDirName = dirName
-            .components(separatedBy: .newlines).joined()
-            .components(separatedBy: .controlCharacters).joined()
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-        let safeAppName = appName
-            .components(separatedBy: .newlines).joined()
-            .components(separatedBy: .controlCharacters).joined()
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
+        let safeDirName = sanitizeForAppleScript(dirName)
+        let safeAppName = sanitizeForAppleScript(appName)
 
         let script = """
         tell application "System Events"
@@ -233,6 +225,107 @@ enum TerminalActivator {
         end tell
         """
 
+        guard let appleScript = NSAppleScript(source: script) else { return }
+        appleScript.executeAndReturnError(nil)
+    }
+
+    static func tabSwitchScript(
+        bundleId: String,
+        sessionName: String?,
+        clientTty: String?,
+        dirName: String
+    ) -> String? {
+        let matchName = sessionName ?? dirName
+        let safeName = sanitizeForAppleScript(matchName)
+
+        switch bundleId {
+        case "com.mitchellh.ghostty":
+            return """
+            tell application "Ghostty"
+                repeat with w in windows
+                    repeat with t in tabs of w
+                        if name of t contains "\(safeName)" then
+                            select tab t
+                            return
+                        end if
+                    end repeat
+                end repeat
+            end tell
+            """
+
+        case "com.googlecode.iterm2":
+            if let safeTty = clientTty.map(sanitizeForAppleScript), sessionName == nil {
+                return """
+                tell application "iTerm2"
+                    repeat with aWindow in windows
+                        tell aWindow
+                            repeat with aTab in tabs
+                                repeat with aSession in sessions of aTab
+                                    if tty of aSession is "\(safeTty)" then
+                                        tell aTab to select
+                                        select
+                                        return
+                                    end if
+                                end repeat
+                            end repeat
+                        end tell
+                    end repeat
+                end tell
+                """
+            }
+            return """
+            tell application "iTerm2"
+                repeat with aWindow in windows
+                    tell aWindow
+                        repeat with aTab in tabs
+                            if name of current session of aTab contains "\(safeName)" then
+                                tell aTab to select
+                                select
+                                return
+                            end if
+                        end repeat
+                    end tell
+                end repeat
+            end tell
+            """
+
+        case "com.apple.Terminal":
+            guard let safeTty = clientTty.map(sanitizeForAppleScript) else { return nil }
+            return """
+            tell application "Terminal"
+                repeat with aWindow in windows
+                    repeat with aTab in tabs of aWindow
+                        if tty of aTab is "\(safeTty)" then
+                            set selected of aTab to true
+                            set index of aWindow to 1
+                            return
+                        end if
+                    end repeat
+                end repeat
+            end tell
+            """
+
+        default:
+            return nil
+        }
+    }
+
+    private static func sanitizeForAppleScript(_ value: String) -> String {
+        value
+            .components(separatedBy: .newlines).joined()
+            .components(separatedBy: .controlCharacters).joined()
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+    }
+
+    private static func selectTerminalTab(bundleId: String, env: EnvironmentContext, cwd: String) {
+        let dirName = URL(fileURLWithPath: cwd).lastPathComponent
+        guard let script = tabSwitchScript(
+            bundleId: bundleId,
+            sessionName: env.tmuxSessionName,
+            clientTty: env.tmuxClientTty,
+            dirName: dirName
+        ) else { return }
         guard let appleScript = NSAppleScript(source: script) else { return }
         appleScript.executeAndReturnError(nil)
     }
