@@ -80,4 +80,20 @@ final class TerminalActivatorTests: XCTestCase {
             XCTAssertFalse(TerminalActivator.inPreview)
         }
     }
+
+    func testClearPreviewStateHidesOverlay() {
+        guard NSScreen.main != nil else { return }
+        addTeardownBlock { PreviewOverlay.hide() }
+
+        PreviewOverlay.show(paneRect: NSRect(x: 100, y: 100, width: 400, height: 300))
+        XCTAssertTrue(PreviewOverlay.isVisible)
+
+        TerminalActivator.clearPreviewState()
+
+        let hidden = XCTNSPredicateExpectation(
+            predicate: NSPredicate(block: { _, _ in !PreviewOverlay.isVisible }),
+            object: nil
+        )
+        wait(for: [hidden], timeout: 2.0)
+    }
 }

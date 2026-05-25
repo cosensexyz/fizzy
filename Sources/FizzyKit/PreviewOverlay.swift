@@ -32,6 +32,10 @@ enum PreviewOverlay {
     private static var overlayWindow: NSWindow?
     private static var dimView: DimView?
 
+    static var isVisible: Bool {
+        overlayWindow?.isVisible ?? false
+    }
+
     static func parseTmuxGeometry(_ output: String) -> TmuxGeometry? {
         let parts = output.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: " ")
         guard parts.count == 6,

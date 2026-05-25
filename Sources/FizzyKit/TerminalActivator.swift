@@ -109,6 +109,9 @@ enum TerminalActivator {
             _savedPaneId = nil
             _savedPaneSocket = nil
             _inPreview = false
+            DispatchQueue.main.async {
+                PreviewOverlay.hide()
+            }
         }
     }
 
