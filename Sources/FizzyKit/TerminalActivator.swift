@@ -103,15 +103,15 @@ enum TerminalActivator {
             _savedApp = nil
             _inPreview = false
 
-            if let paneId = _savedPaneId {
-                selectTmuxPane(paneId, socketPath: _savedPaneSocket)
-                _savedPaneId = nil
-                _savedPaneSocket = nil
-            }
             if let bundleId = _savedTabBundleId, let tabId = _savedTabId {
                 restoreTerminalTab(bundleId: bundleId, tabId: tabId)
                 _savedTabBundleId = nil
                 _savedTabId = nil
+            }
+            if let paneId = _savedPaneId {
+                selectTmuxPane(paneId, socketPath: _savedPaneSocket)
+                _savedPaneId = nil
+                _savedPaneSocket = nil
             }
             DispatchQueue.main.async {
                 PreviewOverlay.hide()
@@ -287,7 +287,7 @@ enum TerminalActivator {
                                 repeat with aSession in sessions of aTab
                                     if tty of aSession is "\(safeTty)" then
                                         tell aTab to select
-                                        select
+                                        select aWindow
                                         return
                                     end if
                                 end repeat
@@ -304,7 +304,7 @@ enum TerminalActivator {
                         repeat with aTab in tabs
                             if name of current session of aTab contains "\(safeName)" then
                                 tell aTab to select
-                                select
+                                select aWindow
                                 return
                             end if
                         end repeat
