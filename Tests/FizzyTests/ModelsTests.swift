@@ -115,6 +115,35 @@ final class ModelsTests: XCTestCase {
         XCTAssertNil(env.gitBranch)
     }
 
+    func testDecodeEnvironmentContextWithTmuxSessionAndClientTty() throws {
+        let json = """
+        {
+            "terminal_pid": 12345,
+            "tmux_pane": "%3",
+            "tmux_socket_path": "/private/tmp/tmux-501/default",
+            "tmux_session_name": "main",
+            "tmux_client_tty": "/dev/ttys003",
+            "git_branch": "main"
+        }
+        """.data(using: .utf8)!
+
+        let env = try JSONDecoder().decode(EnvironmentContext.self, from: json)
+
+        XCTAssertEqual(env.tmuxSessionName, "main")
+        XCTAssertEqual(env.tmuxClientTty, "/dev/ttys003")
+    }
+
+    func testDecodeEnvironmentContextOmitsNewFieldsGracefully() throws {
+        let json = """
+        {"terminal_pid": 1, "tmux_pane": "%0"}
+        """.data(using: .utf8)!
+
+        let env = try JSONDecoder().decode(EnvironmentContext.self, from: json)
+
+        XCTAssertNil(env.tmuxSessionName)
+        XCTAssertNil(env.tmuxClientTty)
+    }
+
     // MARK: - FizzyNotification envelope
 
     func testDecodeFizzyNotificationClaudeCode() throws {
