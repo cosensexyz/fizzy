@@ -1,0 +1,8 @@
+#!/bin/bash
+LABEL="xyz.cosense.fizzy"
+PLIST="/Library/LaunchAgents/${LABEL}.plist"
+CONSOLE_USER=$(stat -f "%Su" /dev/console)
+CONSOLE_UID=$(id -u "$CONSOLE_USER")
+
+sudo -u "$CONSOLE_USER" launchctl bootout "gui/${CONSOLE_UID}/${LABEL}" 2>/dev/null
+sudo -u "$CONSOLE_USER" launchctl bootstrap "gui/${CONSOLE_UID}" "$PLIST"
