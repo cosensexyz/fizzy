@@ -6,6 +6,8 @@ enum TerminalActivator {
     private static var _savedApp: NSRunningApplication?
     private static var _savedPaneId: String?
     private static var _savedPaneSocket: String?
+    private static var _savedTabBundleId: String?
+    private static var _savedTabId: String?
 
     static var inPreview: Bool {
         queue.sync { _inPreview }
@@ -44,6 +46,8 @@ enum TerminalActivator {
 
             if let pane = env.tmuxPane {
                 if let bundleId {
+                    _savedTabBundleId = bundleId
+                    _savedTabId = queryCurrentTab(bundleId: bundleId)
                     selectTerminalTab(bundleId: bundleId, env: env, cwd: cwd)
                 }
                 _savedPaneId = currentTmuxPane(socketPath: env.tmuxSocketPath)
@@ -104,6 +108,11 @@ enum TerminalActivator {
                 _savedPaneId = nil
                 _savedPaneSocket = nil
             }
+            if let bundleId = _savedTabBundleId, let tabId = _savedTabId {
+                restoreTerminalTab(bundleId: bundleId, tabId: tabId)
+                _savedTabBundleId = nil
+                _savedTabId = nil
+            }
             DispatchQueue.main.async {
                 PreviewOverlay.hide()
                 appToRestore?.activate(options: [])
@@ -116,6 +125,8 @@ enum TerminalActivator {
             _savedApp = nil
             _savedPaneId = nil
             _savedPaneSocket = nil
+            _savedTabBundleId = nil
+            _savedTabId = nil
             _inPreview = false
             DispatchQueue.main.async {
                 PreviewOverlay.hide()
@@ -266,6 +277,7 @@ enum TerminalActivator {
             """
 
         case "com.googlecode.iterm2":
+            // Priority: sessionName > clientTty > dirName
             if let safeTty = clientTty.map(sanitizeForAppleScript), sessionName == nil {
                 return """
                 tell application "iTerm2"
@@ -328,6 +340,91 @@ enum TerminalActivator {
             .components(separatedBy: .controlCharacters).joined()
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
+    }
+
+    static func currentTabScript(bundleId: String) -> String? {
+        switch bundleId {
+        case "com.mitchellh.ghostty":
+            return """
+            tell application "Ghostty"
+                return (index of selected tab of front window) as text
+            end tell
+            """
+        case "com.googlecode.iterm2":
+            return """
+            tell application "iTerm2"
+                tell current window
+                    set ct to current tab
+                    repeat with i from 1 to count of tabs
+                        if item i of tabs is ct then
+                            return i as text
+                        end if
+                    end repeat
+                end tell
+            end tell
+            """
+        case "com.apple.Terminal":
+            return """
+            tell application "Terminal"
+                return tty of selected tab of front window
+            end tell
+            """
+        default:
+            return nil
+        }
+    }
+
+    static func tabRestoreScript(bundleId: String, tabId: String) -> String? {
+        switch bundleId {
+        case "com.mitchellh.ghostty":
+            guard let index = Int(tabId) else { return nil }
+            return """
+            tell application "Ghostty"
+                select tab (tab \(index) of front window)
+            end tell
+            """
+        case "com.googlecode.iterm2":
+            guard let index = Int(tabId) else { return nil }
+            return """
+            tell application "iTerm2"
+                tell current window
+                    select item \(index) of tabs
+                end tell
+            end tell
+            """
+        case "com.apple.Terminal":
+            let safeTty = sanitizeForAppleScript(tabId)
+            return """
+            tell application "Terminal"
+                repeat with aWindow in windows
+                    repeat with aTab in tabs of aWindow
+                        if tty of aTab is "\(safeTty)" then
+                            set selected of aTab to true
+                            set index of aWindow to 1
+                            return
+                        end if
+                    end repeat
+                end repeat
+            end tell
+            """
+        default:
+            return nil
+        }
+    }
+
+    private static func queryCurrentTab(bundleId: String) -> String? {
+        guard let script = currentTabScript(bundleId: bundleId),
+              let appleScript = NSAppleScript(source: script) else { return nil }
+        var error: NSDictionary?
+        let result = appleScript.executeAndReturnError(&error)
+        guard error == nil else { return nil }
+        return result.stringValue
+    }
+
+    private static func restoreTerminalTab(bundleId: String, tabId: String) {
+        guard let script = tabRestoreScript(bundleId: bundleId, tabId: tabId),
+              let appleScript = NSAppleScript(source: script) else { return }
+        appleScript.executeAndReturnError(nil)
     }
 
     private static func selectTerminalTab(bundleId: String, env: EnvironmentContext, cwd: String) {

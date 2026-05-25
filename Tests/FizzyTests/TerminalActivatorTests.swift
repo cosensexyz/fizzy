@@ -150,6 +150,17 @@ final class TerminalActivatorTests: XCTestCase {
         XCTAssertTrue(script!.contains("tty of aSession is \"/dev/ttys007\""))
     }
 
+    func testTabScriptIterm2FallsToDirName() {
+        let script = TerminalActivator.tabSwitchScript(
+            bundleId: "com.googlecode.iterm2",
+            sessionName: nil,
+            clientTty: nil,
+            dirName: "myproject"
+        )
+        XCTAssertNotNil(script)
+        XCTAssertTrue(script!.contains("name of current session of aTab contains \"myproject\""))
+    }
+
     func testTabScriptTerminalMatchesByTty() {
         let script = TerminalActivator.tabSwitchScript(
             bundleId: "com.apple.Terminal",
@@ -192,5 +203,64 @@ final class TerminalActivatorTests: XCTestCase {
         XCTAssertNotNil(script)
         XCTAssertTrue(script!.contains(#"has\"quotes\\and"#))
         XCTAssertFalse(script!.contains("\n\" then"))
+    }
+
+    // MARK: - currentTabScript
+
+    func testCurrentTabScriptGhostty() {
+        let script = TerminalActivator.currentTabScript(bundleId: "com.mitchellh.ghostty")
+        XCTAssertNotNil(script)
+        XCTAssertTrue(script!.contains("tell application \"Ghostty\""))
+        XCTAssertTrue(script!.contains("index of selected tab of front window"))
+    }
+
+    func testCurrentTabScriptIterm2() {
+        let script = TerminalActivator.currentTabScript(bundleId: "com.googlecode.iterm2")
+        XCTAssertNotNil(script)
+        XCTAssertTrue(script!.contains("tell application \"iTerm2\""))
+        XCTAssertTrue(script!.contains("current tab"))
+    }
+
+    func testCurrentTabScriptTerminal() {
+        let script = TerminalActivator.currentTabScript(bundleId: "com.apple.Terminal")
+        XCTAssertNotNil(script)
+        XCTAssertTrue(script!.contains("tell application \"Terminal\""))
+        XCTAssertTrue(script!.contains("tty of selected tab"))
+    }
+
+    func testCurrentTabScriptUnknownReturnsNil() {
+        XCTAssertNil(TerminalActivator.currentTabScript(bundleId: "com.example.unknown"))
+    }
+
+    // MARK: - tabRestoreScript
+
+    func testTabRestoreScriptGhostty() {
+        let script = TerminalActivator.tabRestoreScript(bundleId: "com.mitchellh.ghostty", tabId: "3")
+        XCTAssertNotNil(script)
+        XCTAssertTrue(script!.contains("tell application \"Ghostty\""))
+        XCTAssertTrue(script!.contains("tab 3 of front window"))
+    }
+
+    func testTabRestoreScriptIterm2() {
+        let script = TerminalActivator.tabRestoreScript(bundleId: "com.googlecode.iterm2", tabId: "2")
+        XCTAssertNotNil(script)
+        XCTAssertTrue(script!.contains("tell application \"iTerm2\""))
+        XCTAssertTrue(script!.contains("item 2 of tabs"))
+    }
+
+    func testTabRestoreScriptTerminal() {
+        let script = TerminalActivator.tabRestoreScript(bundleId: "com.apple.Terminal", tabId: "/dev/ttys005")
+        XCTAssertNotNil(script)
+        XCTAssertTrue(script!.contains("tell application \"Terminal\""))
+        XCTAssertTrue(script!.contains("tty of aTab is \"/dev/ttys005\""))
+    }
+
+    func testTabRestoreScriptRejectsInvalidIndex() {
+        XCTAssertNil(TerminalActivator.tabRestoreScript(bundleId: "com.mitchellh.ghostty", tabId: "not-a-number"))
+        XCTAssertNil(TerminalActivator.tabRestoreScript(bundleId: "com.googlecode.iterm2", tabId: "abc"))
+    }
+
+    func testTabRestoreScriptUnknownReturnsNil() {
+        XCTAssertNil(TerminalActivator.tabRestoreScript(bundleId: "com.example.unknown", tabId: "1"))
     }
 }
