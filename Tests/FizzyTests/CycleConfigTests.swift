@@ -4,7 +4,7 @@ import CoreGraphics
 @testable import FizzyKit
 
 final class CycleConfigTests: XCTestCase {
-    private let testKeys = ["cycleModifierFlags", "cycleKeyCode", "cycleDisplayMode"]
+    private let testKeys = ["cycleModifierFlags", "cycleDisplayMode"]
 
     override func setUp() {
         super.setUp()
@@ -20,14 +20,12 @@ final class CycleConfigTests: XCTestCase {
         let config = CycleConfig()
         XCTAssertTrue(config.modifierFlags.contains(.maskCommand))
         XCTAssertTrue(config.modifierFlags.contains(.maskShift))
-        XCTAssertEqual(config.keyCode, 124)
         XCTAssertEqual(config.displayMode, .listAndPreview)
     }
 
     func testSaveAndLoadRoundTrip() {
         var config = CycleConfig()
         config.modifierFlags = [.maskCommand, .maskAlternate]
-        config.keyCode = 36
         config.displayMode = .previewOnly
         config.save()
 
@@ -35,7 +33,6 @@ final class CycleConfigTests: XCTestCase {
         XCTAssertTrue(loaded.modifierFlags.contains(.maskCommand))
         XCTAssertTrue(loaded.modifierFlags.contains(.maskAlternate))
         XCTAssertFalse(loaded.modifierFlags.contains(.maskShift))
-        XCTAssertEqual(loaded.keyCode, 36)
         XCTAssertEqual(loaded.displayMode, .previewOnly)
     }
 
@@ -43,7 +40,6 @@ final class CycleConfigTests: XCTestCase {
         let config = CycleConfig.load()
         XCTAssertTrue(config.modifierFlags.contains(.maskCommand))
         XCTAssertTrue(config.modifierFlags.contains(.maskShift))
-        XCTAssertEqual(config.keyCode, 124)
         XCTAssertEqual(config.displayMode, .listAndPreview)
     }
 

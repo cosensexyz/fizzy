@@ -7,17 +7,7 @@ public final class SettingsPanel: NSPanel {
         case granted, denied, notAsked, notRunning
     }
 
-    private static let reservedKeyCodes: Set<UInt16> = [123, 124, 125, 126]
-
-    private var shortcutLabel: NSTextField!
-    private var recordButton: NSButton!
-    private var isRecording = false
-    private var localMonitor: Any?
     private var permissionRows: NSStackView!
-
-    deinit {
-        if let monitor = localMonitor { NSEvent.removeMonitor(monitor) }
-    }
 
     public init() {
         let size = NSSize(width: 400, height: 600)
@@ -49,29 +39,11 @@ public final class SettingsPanel: NSPanel {
         container.spacing = 16
         container.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
 
-        // Shortcut section
-        let shortcutHeader = NSTextField(labelWithString: "Cycle Shortcut")
-        shortcutHeader.font = .systemFont(ofSize: 13, weight: .semibold)
-
-        let shortcutRow = NSStackView()
-        shortcutRow.orientation = .horizontal
-        shortcutRow.spacing = 8
-
-        let config = CycleConfig.load()
-        shortcutLabel = NSTextField(labelWithString: Self.shortcutDescription(
-            modifiers: config.modifierFlags, keyCode: config.keyCode
-        ))
-        shortcutLabel.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
-
-        recordButton = NSButton(title: "Record", target: self, action: #selector(recordClicked))
-        recordButton.bezelStyle = .rounded
-
-        shortcutRow.addArrangedSubview(shortcutLabel)
-        shortcutRow.addArrangedSubview(recordButton)
-
         // Display mode section
         let modeHeader = NSTextField(labelWithString: "Display Mode")
         modeHeader.font = .systemFont(ofSize: 13, weight: .semibold)
+
+        let config = CycleConfig.load()
 
         let listAndPreviewRadio = NSButton(radioButtonWithTitle: "Switcher + Preview", target: self, action: #selector(displayModeChanged(_:)))
         listAndPreviewRadio.tag = 0
@@ -139,18 +111,16 @@ public final class SettingsPanel: NSPanel {
         let separator3 = NSBox()
         separator3.boxType = .separator
 
-        container.addArrangedSubview(shortcutHeader)
-        container.addArrangedSubview(shortcutRow)
-        container.addArrangedSubview(separator1)
         container.addArrangedSubview(bindingsHeader)
         container.addArrangedSubview(bindingsStack)
         container.addArrangedSubview(separator3)
         container.addArrangedSubview(modeHeader)
         container.addArrangedSubview(listAndPreviewRadio)
         container.addArrangedSubview(previewOnlyRadio)
-        container.addArrangedSubview(separator2)
+        container.addArrangedSubview(separator1)
         container.addArrangedSubview(permHeader)
         container.addArrangedSubview(permissionRows)
+        container.addArrangedSubview(separator2)
         container.addArrangedSubview(openSettingsButton)
 
         contentView = container
@@ -159,37 +129,6 @@ public final class SettingsPanel: NSPanel {
     public func show() {
         refreshPermissions()
         orderFront(nil)
-    }
-
-    // MARK: - Shortcut recording
-
-    @objc private func recordClicked() {
-        isRecording = true
-        recordButton.title = "Press shortcut..."
-        shortcutLabel.stringValue = "..."
-
-        localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self, self.isRecording else { return event }
-            let mods = event.modifierFlags.intersection([.command, .shift, .option, .control])
-            guard !mods.isEmpty else { return event }
-            guard !Self.reservedKeyCodes.contains(event.keyCode) else { return event }
-
-            self.isRecording = false
-            if let monitor = self.localMonitor { NSEvent.removeMonitor(monitor) }
-            self.localMonitor = nil
-
-            var config = CycleConfig.load()
-            config.modifierFlags = Self.cgEventFlags(from: mods)
-            config.keyCode = event.keyCode
-            config.save()
-
-            self.shortcutLabel.stringValue = Self.shortcutDescription(
-                modifiers: config.modifierFlags, keyCode: config.keyCode
-            )
-            self.recordButton.title = "Record"
-            HotkeyManager.updateConfig(config)
-            return nil
-        }
     }
 
     @objc private func displayModeChanged(_ sender: NSButton) {
@@ -292,37 +231,12 @@ public final class SettingsPanel: NSPanel {
         }
     }
 
-    public static func shortcutDescription(modifiers: CGEventFlags, keyCode: UInt16) -> String {
-        var parts: [String] = []
-        if modifiers.contains(.maskControl) { parts.append("Ctrl") }
-        if modifiers.contains(.maskAlternate) { parts.append("Opt") }
-        if modifiers.contains(.maskShift) { parts.append("Shift") }
-        if modifiers.contains(.maskCommand) { parts.append("Cmd") }
-        parts.append(keyName(for: keyCode))
-        return parts.joined(separator: "+")
-    }
-
-    public static func keyName(for keyCode: UInt16) -> String {
-        switch keyCode {
-        case 49: return "Space"
-        case 36: return "Return"
-        case 48: return "Tab"
-        case 53: return "Escape"
-        case 51: return "Delete"
-        case 123: return "←"
-        case 124: return "→"
-        case 125: return "↓"
-        case 126: return "↑"
-        default: return "Key(\(keyCode))"
-        }
-    }
-
-    private static func cgEventFlags(from nsFlags: NSEvent.ModifierFlags) -> CGEventFlags {
-        var flags = CGEventFlags()
-        if nsFlags.contains(.command) { flags.insert(.maskCommand) }
-        if nsFlags.contains(.shift) { flags.insert(.maskShift) }
-        if nsFlags.contains(.option) { flags.insert(.maskAlternate) }
-        if nsFlags.contains(.control) { flags.insert(.maskControl) }
-        return flags
+    public static func modifierSymbols(for flags: CGEventFlags) -> [String] {
+        var symbols: [String] = []
+        if flags.contains(.maskCommand) { symbols.append("⌘") }
+        if flags.contains(.maskShift) { symbols.append("⇧") }
+        if flags.contains(.maskAlternate) { symbols.append("⌥") }
+        if flags.contains(.maskControl) { symbols.append("⌃") }
+        return symbols
     }
 }

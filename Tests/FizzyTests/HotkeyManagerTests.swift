@@ -148,26 +148,20 @@ final class HotkeyManagerTests: XCTestCase {
 
     // MARK: - Custom config
 
-    func testCustomModifierAndKey() {
-        let config = CycleConfig(
-            modifierFlags: [.maskCommand, .maskAlternate],
-            keyCode: 36
-        )
+    func testCustomModifiers() {
+        let config = CycleConfig(modifierFlags: [.maskCommand, .maskAlternate])
         let result = HotkeyManager.mapEvent(
-            keyCode: 36, eventType: .keyDown,
+            keyCode: 124, eventType: .keyDown,
             flags: [.maskCommand, .maskAlternate],
             state: .idle, config: config
         )
         XCTAssertEqual(result?.action, .startSession)
     }
 
-    func testCustomConfigRejectsOldShortcut() {
-        let config = CycleConfig(
-            modifierFlags: [.maskCommand, .maskAlternate],
-            keyCode: 36
-        )
+    func testCustomModifiersRejectWrongModifiers() {
+        let config = CycleConfig(modifierFlags: [.maskCommand, .maskAlternate])
         let result = HotkeyManager.mapEvent(
-            keyCode: 49, eventType: .keyDown,
+            keyCode: 124, eventType: .keyDown,
             flags: [.maskCommand, .maskShift],
             state: .idle, config: config
         )

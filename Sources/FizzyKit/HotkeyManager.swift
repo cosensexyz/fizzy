@@ -46,7 +46,7 @@ public enum HotkeyManager {
         let hasModifiers = flags.contains(config.modifierFlags)
 
         switch (state, eventType) {
-        case (.idle, .keyDown) where keyCode == config.keyCode && hasModifiers:
+        case (.idle, .keyDown) where keyCode == 124 && hasModifiers:
             return EventResult(action: .startSession, newState: .cycling)
 
         case (.idle, .keyDown) where keyCode == 123 && hasModifiers:
@@ -54,7 +54,7 @@ public enum HotkeyManager {
 
         case (.cycling, .keyDown) where hasModifiers:
             switch keyCode {
-            case config.keyCode, 124:
+            case 124:
                 return EventResult(action: .cycleForward, newState: .cycling)
             case 123:
                 return EventResult(action: .cycleBackward, newState: .cycling)
