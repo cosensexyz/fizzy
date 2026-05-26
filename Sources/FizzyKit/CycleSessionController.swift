@@ -50,8 +50,8 @@ public final class CycleSessionController {
         panel = nil
         isActive = false
         selectedIndex = 0
-        onOpenSession?(item)
         store.dismiss(id: item.id)
+        onOpenSession?(item)
     }
 
     public func cancel() {
