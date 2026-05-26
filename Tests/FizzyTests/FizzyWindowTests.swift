@@ -36,11 +36,12 @@ final class FizzyWindowTests: XCTestCase {
         XCTAssertNil(FizzyWindow.savedOrigin())
     }
 
-    func testContextMenuHasQuitItem() {
+    func testContextMenuHasSettingsAndQuit() {
         let window = FizzyWindow()
         let menu = window.contextMenu()
-        XCTAssertEqual(menu.items.count, 1)
-        XCTAssertEqual(menu.items[0].title, "Quit")
-        XCTAssertEqual(menu.items[0].action, #selector(NSApplication.terminate(_:)))
+        XCTAssertEqual(menu.items.count, 3)
+        XCTAssertEqual(menu.items[0].title, "Settings...")
+        XCTAssertTrue(menu.items[1].isSeparatorItem)
+        XCTAssertEqual(menu.items[2].title, "Quit")
     }
 }

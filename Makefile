@@ -9,6 +9,7 @@ APP_DIR   = /Applications
 APP_NAME  = Fizzy.app
 APP_PATH  = $(APP_DIR)/$(APP_NAME)
 APP_BIN   = $(APP_PATH)/Contents/MacOS/Fizzy
+VERSION = $(shell git describe --tags --always --dirty 2>/dev/null || echo "0.0.0-dev")
 
 build:
 	swift build
@@ -31,9 +32,10 @@ install: build-release
 	@# --- App bundle ---
 	mkdir -p $(APP_PATH)/Contents/MacOS
 	mkdir -p $(APP_PATH)/Contents/Resources
-	cp scripts/Info.plist $(APP_PATH)/Contents/Info.plist
+	sed 's/1\.0/$(VERSION)/g' scripts/Info.plist > $(APP_PATH)/Contents/Info.plist
 	cp scripts/AppIcon.icns $(APP_PATH)/Contents/Resources/AppIcon.icns
 	install -m 755 $$(swift build -c release --show-bin-path)/Fizzy $(APP_BIN)
+	codesign --force --sign - $(APP_PATH)
 	@# --- CLI tools ---
 	install -d $(BINDIR)
 	ln -sf $(APP_BIN) $(BINDIR)/fizzy
@@ -53,7 +55,6 @@ uninstall:
 build-release:
 	swift build -c release
 
-VERSION = $(shell git describe --tags --always --dirty 2>/dev/null || echo "0.0.0-dev")
 PKG_ID  = $(LABEL)
 PKG_ROOT = .build/pkg-root
 PKG_OUT  = .build/Fizzy-$(VERSION).pkg
@@ -68,9 +69,10 @@ pkg: build-release
 	mkdir -p $(PKG_ROOT)/usr/local/bin
 	mkdir -p $(PKG_ROOT)/Library/LaunchAgents
 	mkdir -p $(PKG_SCRIPTS)
-	cp scripts/Info.plist $(PKG_APP)/Contents/Info.plist
+	sed 's/1\.0/$(VERSION)/g' scripts/Info.plist > $(PKG_APP)/Contents/Info.plist
 	cp scripts/AppIcon.icns $(PKG_APP)/Contents/Resources/AppIcon.icns
 	install -m 755 $$(swift build -c release --show-bin-path)/Fizzy $(PKG_APP)/Contents/MacOS/Fizzy
+	codesign --force --sign - $(PKG_APP)
 	ln -sf $(APP_BIN) $(PKG_ROOT)/usr/local/bin/fizzy
 	cp scripts/notify-fizzy.sh $(PKG_ROOT)/usr/local/bin/notify-fizzy
 	chmod 755 $(PKG_ROOT)/usr/local/bin/notify-fizzy

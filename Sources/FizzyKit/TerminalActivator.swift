@@ -1,6 +1,8 @@
 import AppKit
 
 enum TerminalActivator {
+    static var isEnabled = true
+
     // queue: state mutations + tmux CLI. scriptQueue: AppleScript (may block on Automation consent).
     // Tab and pane switching run concurrently by design to avoid AppleScript blocking tmux ops.
     private static let queue = DispatchQueue(label: "com.fizzy.terminal-activator")
@@ -29,6 +31,7 @@ enum TerminalActivator {
 
     @discardableResult
     static func enterPreview(for item: NotificationItem) -> Bool {
+        guard isEnabled else { return false }
         guard let app = resolveTerminalApp(for: item) else { return false }
 
         let frontmost = NSWorkspace.shared.frontmostApplication
@@ -78,6 +81,7 @@ enum TerminalActivator {
     }
 
     static func switchPreview(to item: NotificationItem) {
+        guard isEnabled else { return }
         let env = item.env
         let cwd = item.notification.cwd
         let app = resolveTerminalApp(for: item)
@@ -107,6 +111,7 @@ enum TerminalActivator {
     }
 
     static func exitPreview() {
+        guard isEnabled else { return }
         queue.async {
             guard _inPreview else { return }
             let appToRestore = _savedApp
@@ -137,6 +142,7 @@ enum TerminalActivator {
     }
 
     static func clearPreviewState() {
+        guard isEnabled else { return }
         queue.async {
             _savedApp = nil
             _savedPaneId = nil
