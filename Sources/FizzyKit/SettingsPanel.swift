@@ -7,14 +7,20 @@ public final class SettingsPanel: NSPanel {
         case granted, denied, notAsked, notRunning
     }
 
+    private static let reservedKeyCodes: Set<UInt16> = [123, 124, 125, 126]
+
     private var shortcutLabel: NSTextField!
     private var recordButton: NSButton!
     private var isRecording = false
     private var localMonitor: Any?
     private var permissionRows: NSStackView!
 
+    deinit {
+        if let monitor = localMonitor { NSEvent.removeMonitor(monitor) }
+    }
+
     public init() {
-        let size = NSSize(width: 400, height: 480)
+        let size = NSSize(width: 400, height: 600)
         let screen = NSScreen.main ?? NSScreen.screens[0]
         let origin = NSPoint(
             x: screen.frame.midX - size.width / 2,
@@ -97,9 +103,48 @@ public final class SettingsPanel: NSPanel {
         let openSettingsButton = NSButton(title: "Open System Settings", target: self, action: #selector(openSystemSettings))
         openSettingsButton.bezelStyle = .rounded
 
+        // Key bindings section (read-only)
+        let bindingsHeader = NSTextField(labelWithString: "Key Bindings (while cycling)")
+        bindingsHeader.font = .systemFont(ofSize: 13, weight: .semibold)
+
+        let bindings: [(String, String)] = [
+            ("→  Right Arrow", "Cycle forward"),
+            ("←  Left Arrow", "Cycle backward"),
+            ("↓  Down Arrow", "Confirm selection"),
+            ("↑  Up Arrow", "Cancel"),
+            ("Release modifiers", "Confirm selection"),
+        ]
+
+        let bindingsStack = NSStackView()
+        bindingsStack.orientation = .vertical
+        bindingsStack.alignment = .leading
+        bindingsStack.spacing = 4
+
+        for (key, action) in bindings {
+            let row = NSStackView()
+            row.orientation = .horizontal
+            row.spacing = 12
+            let keyLabel = NSTextField(labelWithString: key)
+            keyLabel.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+            keyLabel.textColor = .labelColor
+            keyLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+            let actionLabel = NSTextField(labelWithString: action)
+            actionLabel.font = .systemFont(ofSize: 11)
+            actionLabel.textColor = .secondaryLabelColor
+            row.addArrangedSubview(keyLabel)
+            row.addArrangedSubview(actionLabel)
+            bindingsStack.addArrangedSubview(row)
+        }
+
+        let separator3 = NSBox()
+        separator3.boxType = .separator
+
         container.addArrangedSubview(shortcutHeader)
         container.addArrangedSubview(shortcutRow)
         container.addArrangedSubview(separator1)
+        container.addArrangedSubview(bindingsHeader)
+        container.addArrangedSubview(bindingsStack)
+        container.addArrangedSubview(separator3)
         container.addArrangedSubview(modeHeader)
         container.addArrangedSubview(listAndPreviewRadio)
         container.addArrangedSubview(previewOnlyRadio)
@@ -127,6 +172,7 @@ public final class SettingsPanel: NSPanel {
             guard let self, self.isRecording else { return event }
             let mods = event.modifierFlags.intersection([.command, .shift, .option, .control])
             guard !mods.isEmpty else { return event }
+            guard !Self.reservedKeyCodes.contains(event.keyCode) else { return event }
 
             self.isRecording = false
             if let monitor = self.localMonitor { NSEvent.removeMonitor(monitor) }
@@ -271,7 +317,7 @@ public final class SettingsPanel: NSPanel {
         }
     }
 
-    static func cgEventFlags(from nsFlags: NSEvent.ModifierFlags) -> CGEventFlags {
+    private static func cgEventFlags(from nsFlags: NSEvent.ModifierFlags) -> CGEventFlags {
         var flags = CGEventFlags()
         if nsFlags.contains(.command) { flags.insert(.maskCommand) }
         if nsFlags.contains(.shift) { flags.insert(.maskShift) }

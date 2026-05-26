@@ -15,17 +15,17 @@ public final class CycleSessionController {
         self.config = config
     }
 
-    public func startSession() {
+    public func startSession(backward: Bool = false) {
         guard !store.items.isEmpty else { return }
         isActive = true
-        selectedIndex = 0
+        selectedIndex = backward ? store.items.count - 1 : 0
 
         if config().displayMode == .listAndPreview {
-            panel = SwitcherPanel(items: store.items, selectedIndex: 0)
+            panel = SwitcherPanel(items: store.items, selectedIndex: selectedIndex)
             panel?.show()
         }
 
-        TerminalActivator.enterPreview(for: store.items[0])
+        TerminalActivator.enterPreview(for: store.items[selectedIndex])
     }
 
     public func cycleForward() {
@@ -44,6 +44,7 @@ public final class CycleSessionController {
 
     public func activate() {
         guard isActive else { return }
+        guard selectedIndex < store.items.count else { cancel(); return }
         let item = store.items[selectedIndex]
         TerminalActivator.clearPreviewState()
         panel?.hide()

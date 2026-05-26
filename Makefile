@@ -34,6 +34,7 @@ install: build-release
 	cp scripts/Info.plist $(APP_PATH)/Contents/Info.plist
 	cp scripts/AppIcon.icns $(APP_PATH)/Contents/Resources/AppIcon.icns
 	install -m 755 $$(swift build -c release --show-bin-path)/Fizzy $(APP_BIN)
+	codesign --force --sign - $(APP_PATH)
 	@# --- CLI tools ---
 	install -d $(BINDIR)
 	ln -sf $(APP_BIN) $(BINDIR)/fizzy
@@ -71,6 +72,7 @@ pkg: build-release
 	cp scripts/Info.plist $(PKG_APP)/Contents/Info.plist
 	cp scripts/AppIcon.icns $(PKG_APP)/Contents/Resources/AppIcon.icns
 	install -m 755 $$(swift build -c release --show-bin-path)/Fizzy $(PKG_APP)/Contents/MacOS/Fizzy
+	codesign --force --sign - $(PKG_APP)
 	ln -sf $(APP_BIN) $(PKG_ROOT)/usr/local/bin/fizzy
 	cp scripts/notify-fizzy.sh $(PKG_ROOT)/usr/local/bin/notify-fizzy
 	chmod 755 $(PKG_ROOT)/usr/local/bin/notify-fizzy

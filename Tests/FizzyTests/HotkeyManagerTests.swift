@@ -18,13 +18,13 @@ final class HotkeyManagerTests: XCTestCase {
         XCTAssertEqual(result?.newState, .cycling)
     }
 
-    func testIdleStartsSessionOnModifierPlusArrowLeft() {
+    func testIdleStartsSessionBackwardOnModifierPlusArrowLeft() {
         let result = HotkeyManager.mapEvent(
             keyCode: 123, eventType: .keyDown,
             flags: [.maskCommand, .maskShift],
             state: .idle, config: defaultConfig
         )
-        XCTAssertEqual(result?.action, .startSession)
+        XCTAssertEqual(result?.action, .startSessionBackward)
         XCTAssertEqual(result?.newState, .cycling)
     }
 

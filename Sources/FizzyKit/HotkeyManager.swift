@@ -10,6 +10,7 @@ public enum HotkeyManager {
 
     public enum Action: Equatable {
         case startSession
+        case startSessionBackward
         case cycleForward
         case cycleBackward
         case activate
@@ -27,6 +28,7 @@ public enum HotkeyManager {
     private static var runLoopSource: CFRunLoopSource?
 
     public static var onSessionStart: (() -> Void)?
+    public static var onSessionStartBackward: (() -> Void)?
     public static var onCycleForward: (() -> Void)?
     public static var onCycleBackward: (() -> Void)?
     public static var onActivate: (() -> Void)?
@@ -44,8 +46,11 @@ public enum HotkeyManager {
         let hasModifiers = flags.contains(config.modifierFlags)
 
         switch (state, eventType) {
-        case (.idle, .keyDown) where (keyCode == config.keyCode || keyCode == 123) && hasModifiers:
+        case (.idle, .keyDown) where keyCode == config.keyCode && hasModifiers:
             return EventResult(action: .startSession, newState: .cycling)
+
+        case (.idle, .keyDown) where keyCode == 123 && hasModifiers:
+            return EventResult(action: .startSessionBackward, newState: .cycling)
 
         case (.cycling, .keyDown) where hasModifiers:
             switch keyCode {
@@ -76,7 +81,6 @@ public enum HotkeyManager {
         guard AXIsProcessTrusted() else { return }
 
         let mask: CGEventMask = (1 << CGEventType.keyDown.rawValue) |
-                                (1 << CGEventType.keyUp.rawValue) |
                                 (1 << CGEventType.flagsChanged.rawValue)
 
         guard let tap = CGEvent.tapCreate(
@@ -112,7 +116,7 @@ public enum HotkeyManager {
         _config = config
     }
 
-    // MARK: - Private
+    // MARK: - Private (tap callback runs on main thread via CFRunLoopGetMain)
 
     private static func handleTapEvent(
         type: CGEventType,
@@ -138,6 +142,7 @@ public enum HotkeyManager {
         DispatchQueue.main.async {
             switch result.action {
             case .startSession: onSessionStart?()
+            case .startSessionBackward: onSessionStartBackward?()
             case .cycleForward: onCycleForward?()
             case .cycleBackward: onCycleBackward?()
             case .activate: onActivate?()

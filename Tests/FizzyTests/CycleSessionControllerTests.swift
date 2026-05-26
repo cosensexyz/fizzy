@@ -2,6 +2,16 @@ import XCTest
 @testable import FizzyKit
 
 final class CycleSessionControllerTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        TerminalActivator.isEnabled = false
+    }
+
+    override func tearDown() {
+        TerminalActivator.isEnabled = true
+        super.tearDown()
+    }
+
     private func makeController(items: [NotificationItem]? = nil) -> (CycleSessionController, NotificationStore) {
         let store = NotificationStore()
         if let items = items {
@@ -35,6 +45,15 @@ final class CycleSessionControllerTests: XCTestCase {
         controller.startSession()
         XCTAssertTrue(controller.isActive)
         XCTAssertEqual(controller.selectedIndex, 0)
+    }
+
+    func testStartBackwardSelectsLastItem() {
+        let (controller, _) = makeController(items: [
+            makeItem(message: "a"), makeItem(message: "b"), makeItem(message: "c")
+        ])
+        controller.startSession(backward: true)
+        XCTAssertTrue(controller.isActive)
+        XCTAssertEqual(controller.selectedIndex, 2)
     }
 
     // MARK: - Cycle forward
@@ -158,6 +177,26 @@ final class CycleSessionControllerTests: XCTestCase {
         var called = false
         controller.onOpenSession = { _ in called = true }
         controller.activate()
+        XCTAssertFalse(called)
+    }
+
+    // MARK: - Bounds safety
+
+    func testActivateCancelsIfItemsRemovedMidSession() {
+        let (controller, store) = makeController(items: [
+            makeItem(message: "a"), makeItem(message: "b")
+        ])
+        controller.startSession()
+        controller.cycleForward()
+
+        store.dismiss(id: store.items[0].id)
+        store.dismiss(id: store.items[0].id)
+
+        var called = false
+        controller.onOpenSession = { _ in called = true }
+        controller.activate()
+
+        XCTAssertFalse(controller.isActive)
         XCTAssertFalse(called)
     }
 }

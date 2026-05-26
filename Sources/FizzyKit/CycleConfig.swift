@@ -28,15 +28,18 @@ public struct CycleConfig {
 
     public static func load() -> CycleConfig {
         let defaults = UserDefaults.standard
-        let rawFlags = defaults.object(forKey: modifierKey) as? UInt64
-        let rawKeyCode = defaults.object(forKey: keyCodeKey) as? Int
-        let rawMode = defaults.string(forKey: displayModeKey)
-
-        return CycleConfig(
-            modifierFlags: rawFlags.map { CGEventFlags(rawValue: $0) } ?? [.maskCommand, .maskShift],
-            keyCode: rawKeyCode.map { UInt16($0) } ?? 124,
-            displayMode: rawMode.flatMap { DisplayMode(rawValue: $0) } ?? .listAndPreview
-        )
+        var config = CycleConfig()
+        if let rawFlags = defaults.object(forKey: modifierKey) as? UInt64 {
+            config.modifierFlags = CGEventFlags(rawValue: rawFlags)
+        }
+        if let rawKeyCode = defaults.object(forKey: keyCodeKey) as? Int {
+            config.keyCode = UInt16(rawKeyCode)
+        }
+        if let rawMode = defaults.string(forKey: displayModeKey),
+           let mode = DisplayMode(rawValue: rawMode) {
+            config.displayMode = mode
+        }
+        return config
     }
 
     public func save() {

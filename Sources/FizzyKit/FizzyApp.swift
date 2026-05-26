@@ -67,6 +67,7 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
         }
 
         HotkeyManager.onSessionStart = { [weak self] in self?.cycleController.startSession() }
+        HotkeyManager.onSessionStartBackward = { [weak self] in self?.cycleController.startSession(backward: true) }
         HotkeyManager.onCycleForward = { [weak self] in self?.cycleController.cycleForward() }
         HotkeyManager.onCycleBackward = { [weak self] in self?.cycleController.cycleBackward() }
         HotkeyManager.onActivate = { [weak self] in self?.cycleController.activate() }
