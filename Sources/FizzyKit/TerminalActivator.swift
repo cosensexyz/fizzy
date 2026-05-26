@@ -2,6 +2,7 @@ import AppKit
 
 enum TerminalActivator {
     private static let queue = DispatchQueue(label: "com.fizzy.terminal-activator")
+    private static let scriptQueue = DispatchQueue(label: "com.fizzy.applescript")
     private static var _inPreview = false
     private static var _savedApp: NSRunningApplication?
     private static var _savedPaneId: String?
@@ -47,8 +48,10 @@ enum TerminalActivator {
             if let pane = env.tmuxPane {
                 if let bundleId {
                     _savedTabBundleId = bundleId
-                    _savedTabId = queryCurrentTab(bundleId: bundleId)
-                    selectTerminalTab(bundleId: bundleId, env: env, cwd: cwd)
+                    scriptQueue.async {
+                        _savedTabId = queryCurrentTab(bundleId: bundleId)
+                        selectTerminalTab(bundleId: bundleId, env: env, cwd: cwd)
+                    }
                 }
                 _savedPaneId = currentTmuxPane(socketPath: env.tmuxSocketPath)
                 _savedPaneSocket = env.tmuxSocketPath
@@ -80,7 +83,9 @@ enum TerminalActivator {
         queue.async {
             if let pane = env.tmuxPane {
                 if let bundleId {
-                    selectTerminalTab(bundleId: bundleId, env: env, cwd: cwd)
+                    scriptQueue.async {
+                        selectTerminalTab(bundleId: bundleId, env: env, cwd: cwd)
+                    }
                 }
                 selectTmuxPane(pane, socketPath: env.tmuxSocketPath)
             } else {
@@ -104,9 +109,11 @@ enum TerminalActivator {
             _inPreview = false
 
             if let bundleId = _savedTabBundleId, let tabId = _savedTabId {
-                restoreTerminalTab(bundleId: bundleId, tabId: tabId)
                 _savedTabBundleId = nil
                 _savedTabId = nil
+                scriptQueue.async {
+                    restoreTerminalTab(bundleId: bundleId, tabId: tabId)
+                }
             }
             if let paneId = _savedPaneId {
                 selectTmuxPane(paneId, socketPath: _savedPaneSocket)
@@ -145,7 +152,9 @@ enum TerminalActivator {
         queue.async {
             if let pane = env.tmuxPane {
                 if let bundleId {
-                    selectTerminalTab(bundleId: bundleId, env: env, cwd: cwd)
+                    scriptQueue.async {
+                        selectTerminalTab(bundleId: bundleId, env: env, cwd: cwd)
+                    }
                 }
                 selectTmuxPane(pane, socketPath: env.tmuxSocketPath)
             } else {
