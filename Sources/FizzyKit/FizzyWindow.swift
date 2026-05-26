@@ -49,6 +49,7 @@ public final class FizzyWindow: NSWindow {
         isMovableByWindowBackground = true
         hasShadow = false
 
+        fizzyView.wantsLayer = true
         fizzyView.frame = NSRect(origin: .zero, size: size)
         contentView = fizzyView
 

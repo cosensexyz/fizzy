@@ -186,6 +186,7 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
     }
 
     public func applicationWillTerminate(_ notification: Notification) {
+        DistributedNotificationCenter.default().removeObserver(self)
         accessibilityTimer?.invalidate()
         server?.stop()
     }
