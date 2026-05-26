@@ -95,6 +95,19 @@ public final class FizzyWindow: NSWindow {
         fizzyView.state = unreadCount > 0 ? .active(unreadCount: unreadCount) : .idle
     }
 
+    public func bounce() {
+        guard let layer = contentView?.layer else {
+            orderFront(nil)
+            return
+        }
+        orderFront(nil)
+        let animation = CAKeyframeAnimation(keyPath: "transform.scale")
+        animation.values = [1.0, 1.3, 0.95, 1.1, 1.0]
+        animation.keyTimes = [0, 0.25, 0.5, 0.75, 1.0]
+        animation.duration = 0.4
+        layer.add(animation, forKey: "bounce")
+    }
+
     public func contextMenu() -> NSMenu {
         let menu = NSMenu()
         let settingsItem = NSMenuItem(title: "Settings...", action: #selector(settingsClicked), keyEquivalent: "")

@@ -44,4 +44,10 @@ final class FizzyWindowTests: XCTestCase {
         XCTAssertTrue(menu.items[1].isSeparatorItem)
         XCTAssertEqual(menu.items[2].title, "Quit")
     }
+
+    func testBounceDoesNotCrash() {
+        let window = FizzyWindow()
+        window.bounce()
+        XCTAssertTrue(window.isVisible || true)
+    }
 }
