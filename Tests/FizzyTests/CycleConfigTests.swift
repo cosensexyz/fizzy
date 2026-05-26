@@ -20,7 +20,7 @@ final class CycleConfigTests: XCTestCase {
         let config = CycleConfig()
         XCTAssertTrue(config.modifierFlags.contains(.maskCommand))
         XCTAssertTrue(config.modifierFlags.contains(.maskShift))
-        XCTAssertEqual(config.keyCode, 49)
+        XCTAssertEqual(config.keyCode, 124)
         XCTAssertEqual(config.displayMode, .listAndPreview)
     }
 
@@ -43,7 +43,7 @@ final class CycleConfigTests: XCTestCase {
         let config = CycleConfig.load()
         XCTAssertTrue(config.modifierFlags.contains(.maskCommand))
         XCTAssertTrue(config.modifierFlags.contains(.maskShift))
-        XCTAssertEqual(config.keyCode, 49)
+        XCTAssertEqual(config.keyCode, 124)
         XCTAssertEqual(config.displayMode, .listAndPreview)
     }
 

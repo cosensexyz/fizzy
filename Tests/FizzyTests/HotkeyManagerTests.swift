@@ -8,9 +8,19 @@ final class HotkeyManagerTests: XCTestCase {
 
     // MARK: - Idle state
 
-    func testIdleStartsSessionOnModifierPlusCycleKey() {
+    func testIdleStartsSessionOnModifierPlusArrowRight() {
         let result = HotkeyManager.mapEvent(
-            keyCode: 49, eventType: .keyDown,
+            keyCode: 124, eventType: .keyDown,
+            flags: [.maskCommand, .maskShift],
+            state: .idle, config: defaultConfig
+        )
+        XCTAssertEqual(result?.action, .startSession)
+        XCTAssertEqual(result?.newState, .cycling)
+    }
+
+    func testIdleStartsSessionOnModifierPlusArrowLeft() {
+        let result = HotkeyManager.mapEvent(
+            keyCode: 123, eventType: .keyDown,
             flags: [.maskCommand, .maskShift],
             state: .idle, config: defaultConfig
         )
@@ -20,7 +30,7 @@ final class HotkeyManagerTests: XCTestCase {
 
     func testIdleIgnoresKeyWithoutModifiers() {
         let result = HotkeyManager.mapEvent(
-            keyCode: 49, eventType: .keyDown,
+            keyCode: 124, eventType: .keyDown,
             flags: [], state: .idle, config: defaultConfig
         )
         XCTAssertNil(result)
@@ -37,7 +47,7 @@ final class HotkeyManagerTests: XCTestCase {
 
     func testIdleIgnoresPartialModifiers() {
         let result = HotkeyManager.mapEvent(
-            keyCode: 49, eventType: .keyDown,
+            keyCode: 124, eventType: .keyDown,
             flags: [.maskCommand], state: .idle, config: defaultConfig
         )
         XCTAssertNil(result)
@@ -52,16 +62,6 @@ final class HotkeyManagerTests: XCTestCase {
     }
 
     // MARK: - Cycling state: forward
-
-    func testCyclingForwardWithCycleKey() {
-        let result = HotkeyManager.mapEvent(
-            keyCode: 49, eventType: .keyDown,
-            flags: [.maskCommand, .maskShift],
-            state: .cycling, config: defaultConfig
-        )
-        XCTAssertEqual(result?.action, .cycleForward)
-        XCTAssertEqual(result?.newState, .cycling)
-    }
 
     func testCyclingForwardWithArrowRight() {
         let result = HotkeyManager.mapEvent(
@@ -140,7 +140,7 @@ final class HotkeyManagerTests: XCTestCase {
 
     func testCyclingIgnoresKeyWithoutModifiers() {
         let result = HotkeyManager.mapEvent(
-            keyCode: 49, eventType: .keyDown,
+            keyCode: 124, eventType: .keyDown,
             flags: [], state: .cycling, config: defaultConfig
         )
         XCTAssertNil(result)
@@ -178,7 +178,7 @@ final class HotkeyManagerTests: XCTestCase {
 
     func testExtraModifiersStillMatch() {
         let result = HotkeyManager.mapEvent(
-            keyCode: 49, eventType: .keyDown,
+            keyCode: 124, eventType: .keyDown,
             flags: [.maskCommand, .maskShift, .maskAlternate],
             state: .idle, config: defaultConfig
         )

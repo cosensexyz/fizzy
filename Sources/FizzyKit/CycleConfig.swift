@@ -14,7 +14,7 @@ public struct CycleConfig {
 
     public init(
         modifierFlags: CGEventFlags = [.maskCommand, .maskShift],
-        keyCode: UInt16 = 49,
+        keyCode: UInt16 = 124,
         displayMode: DisplayMode = .listAndPreview
     ) {
         self.modifierFlags = modifierFlags
@@ -34,7 +34,7 @@ public struct CycleConfig {
 
         return CycleConfig(
             modifierFlags: rawFlags.map { CGEventFlags(rawValue: $0) } ?? [.maskCommand, .maskShift],
-            keyCode: rawKeyCode.map { UInt16($0) } ?? 49,
+            keyCode: rawKeyCode.map { UInt16($0) } ?? 124,
             displayMode: rawMode.flatMap { DisplayMode(rawValue: $0) } ?? .listAndPreview
         )
     }
