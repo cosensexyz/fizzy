@@ -139,15 +139,13 @@ public enum HotkeyManager {
 
         state = result.newState
 
-        DispatchQueue.main.async {
-            switch result.action {
-            case .startSession: onSessionStart?()
-            case .startSessionBackward: onSessionStartBackward?()
-            case .cycleForward: onCycleForward?()
-            case .cycleBackward: onCycleBackward?()
-            case .activate: onActivate?()
-            case .cancel: onCancel?()
-            }
+        switch result.action {
+        case .startSession: onSessionStart?()
+        case .startSessionBackward: onSessionStartBackward?()
+        case .cycleForward: onCycleForward?()
+        case .cycleBackward: onCycleBackward?()
+        case .activate: onActivate?()
+        case .cancel: onCancel?()
         }
 
         return nil

@@ -40,4 +40,24 @@ final class SettingsPanelTests: XCTestCase {
         let symbols = SettingsPanel.modifierSymbols(for: [.maskCommand])
         XCTAssertEqual(symbols, ["⌘"])
     }
+
+    // MARK: - Modifier validation
+
+    func testRemovingOneOfTwoModifiersIsValid() {
+        XCTAssertTrue(SettingsPanel.isValidRemoval(
+            current: [.maskCommand, .maskShift], removing: .maskShift
+        ))
+    }
+
+    func testRemovingLastModifierIsInvalid() {
+        XCTAssertFalse(SettingsPanel.isValidRemoval(
+            current: [.maskCommand], removing: .maskCommand
+        ))
+    }
+
+    func testRemovingUnsetModifierIsValid() {
+        XCTAssertTrue(SettingsPanel.isValidRemoval(
+            current: [.maskCommand, .maskShift], removing: .maskAlternate
+        ))
+    }
 }

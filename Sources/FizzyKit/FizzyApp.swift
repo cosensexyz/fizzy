@@ -24,8 +24,12 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
         window = FizzyWindow()
         window.orderFront(nil)
         window.onPetClicked = { [weak self] in self?.toggleList() }
-        window.onPetHoverEnter = { [weak self] in self?.showList() }
-        window.onPetHoverExit = { [weak self] in self?.scheduleHideList() }
+        window.onPetHoverEnter = { [weak self] in
+            if FizzyConfig.load().listTrigger == .hover { self?.showList() }
+        }
+        window.onPetHoverExit = { [weak self] in
+            if FizzyConfig.load().listTrigger == .hover { self?.scheduleHideList() }
+        }
         window.onSettingsClicked = { [weak self] in self?.showSettings() }
 
         NotificationCenter.default.addObserver(
