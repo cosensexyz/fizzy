@@ -4,6 +4,7 @@ public final class CycleSessionController {
     private let store: NotificationStore
     private let config: () -> CycleConfig
     private var panel: SwitcherPanel?
+    private var sessionItems: [NotificationItem] = []
 
     public private(set) var selectedIndex = 0
     public private(set) var isActive = false
@@ -17,40 +18,41 @@ public final class CycleSessionController {
 
     public func startSession(backward: Bool = false) {
         guard !store.items.isEmpty else { return }
+        sessionItems = store.items
         isActive = true
-        selectedIndex = backward ? store.items.count - 1 : 0
+        selectedIndex = backward ? sessionItems.count - 1 : 0
 
         if config().displayMode == .listAndPreview {
-            panel = SwitcherPanel(items: store.items, selectedIndex: selectedIndex)
+            panel = SwitcherPanel(items: sessionItems, selectedIndex: selectedIndex)
             panel?.show()
         }
 
-        TerminalActivator.enterPreview(for: store.items[selectedIndex])
+        TerminalActivator.enterPreview(for: sessionItems[selectedIndex])
     }
 
     public func cycleForward() {
-        guard isActive, !store.items.isEmpty else { return }
-        selectedIndex = (selectedIndex + 1) % store.items.count
+        guard isActive, !sessionItems.isEmpty else { return }
+        selectedIndex = (selectedIndex + 1) % sessionItems.count
         panel?.updateSelection(index: selectedIndex)
-        TerminalActivator.switchPreview(to: store.items[selectedIndex])
+        TerminalActivator.switchPreview(to: sessionItems[selectedIndex])
     }
 
     public func cycleBackward() {
-        guard isActive, !store.items.isEmpty else { return }
-        selectedIndex = (selectedIndex - 1 + store.items.count) % store.items.count
+        guard isActive, !sessionItems.isEmpty else { return }
+        selectedIndex = (selectedIndex - 1 + sessionItems.count) % sessionItems.count
         panel?.updateSelection(index: selectedIndex)
-        TerminalActivator.switchPreview(to: store.items[selectedIndex])
+        TerminalActivator.switchPreview(to: sessionItems[selectedIndex])
     }
 
     public func activate() {
         guard isActive else { return }
-        guard selectedIndex < store.items.count else { cancel(); return }
-        let item = store.items[selectedIndex]
+        let item = sessionItems[selectedIndex]
         TerminalActivator.clearPreviewState()
         panel?.hide()
         panel = nil
         isActive = false
         selectedIndex = 0
+        sessionItems = []
         store.dismiss(id: item.id)
         onOpenSession?(item)
     }
@@ -62,5 +64,6 @@ public final class CycleSessionController {
         panel = nil
         isActive = false
         selectedIndex = 0
+        sessionItems = []
     }
 }

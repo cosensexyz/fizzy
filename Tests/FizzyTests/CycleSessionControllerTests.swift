@@ -180,9 +180,27 @@ final class CycleSessionControllerTests: XCTestCase {
         XCTAssertFalse(called)
     }
 
-    // MARK: - Bounds safety
+    // MARK: - Snapshot isolation
 
-    func testActivateCancelsIfItemsRemovedMidSession() {
+    func testNewItemDuringCycleDoesNotAffectSession() {
+        let (controller, store) = makeController(items: [
+            makeItem(message: "a"), makeItem(message: "b")
+        ])
+        controller.startSession()
+        controller.cycleForward()
+
+        _ = store.add(GenericPayload(message: "new", cwd: "/tmp/new"))
+
+        controller.cycleForward()
+        XCTAssertEqual(controller.selectedIndex, 0)
+
+        var activatedMessage: String?
+        controller.onOpenSession = { activatedMessage = $0.notification.message }
+        controller.activate()
+        XCTAssertEqual(activatedMessage, "a")
+    }
+
+    func testActivateStillWorksAfterItemsDismissedFromStore() {
         let (controller, store) = makeController(items: [
             makeItem(message: "a"), makeItem(message: "b")
         ])
@@ -192,11 +210,11 @@ final class CycleSessionControllerTests: XCTestCase {
         store.dismiss(id: store.items[0].id)
         store.dismiss(id: store.items[0].id)
 
-        var called = false
-        controller.onOpenSession = { _ in called = true }
+        var activatedMessage: String?
+        controller.onOpenSession = { activatedMessage = $0.notification.message }
         controller.activate()
 
         XCTAssertFalse(controller.isActive)
-        XCTAssertFalse(called)
+        XCTAssertEqual(activatedMessage, "b")
     }
 }
