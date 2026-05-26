@@ -83,10 +83,11 @@ enum PreviewOverlay {
     }
 
     static func queryTmuxGeometry(pane: String, socketPath: String?) -> TmuxGeometry? {
-        guard pane.range(of: #"^%\d+$"#, options: .regularExpression) != nil else { return nil }
+        guard pane.range(of: #"^%\d+$"#, options: .regularExpression) != nil,
+              let tmux = TerminalActivator.tmuxPath else { return nil }
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        var args = ["tmux"]
+        process.executableURL = URL(fileURLWithPath: tmux)
+        var args = [String]()
         if let socket = socketPath {
             args += ["-S", socket]
         }

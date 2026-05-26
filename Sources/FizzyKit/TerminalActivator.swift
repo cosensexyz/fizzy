@@ -153,8 +153,15 @@ enum TerminalActivator {
         return nil
     }
 
+    static let tmuxPath: String? = {
+        for path in ["/usr/local/bin/tmux", "/opt/homebrew/bin/tmux"] {
+            if FileManager.default.isExecutableFile(atPath: path) { return path }
+        }
+        return nil
+    }()
+
     static func tmuxArgs(pane: String, socketPath: String?, command: String) -> [String] {
-        var args = ["tmux"]
+        var args = [String]()
         if let socket = socketPath {
             args += ["-S", socket]
         }
@@ -163,10 +170,11 @@ enum TerminalActivator {
     }
 
     private static func selectTmuxPane(_ pane: String, socketPath: String?) {
-        guard pane.range(of: #"^%\d+$"#, options: .regularExpression) != nil else { return }
+        guard pane.range(of: #"^%\d+$"#, options: .regularExpression) != nil,
+              let tmux = tmuxPath else { return }
         for command in ["select-window", "select-pane"] {
             let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            process.executableURL = URL(fileURLWithPath: tmux)
             process.arguments = tmuxArgs(pane: pane, socketPath: socketPath, command: command)
             process.standardOutput = FileHandle.nullDevice
             process.standardError = FileHandle.nullDevice
@@ -176,9 +184,10 @@ enum TerminalActivator {
     }
 
     private static func currentTmuxPane(socketPath: String?) -> String? {
+        guard let tmux = tmuxPath else { return nil }
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        var args = ["tmux"]
+        process.executableURL = URL(fileURLWithPath: tmux)
+        var args = [String]()
         if let socket = socketPath {
             args += ["-S", socket]
         }
