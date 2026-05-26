@@ -21,5 +21,7 @@
     <true/>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Fizzy needs to control terminal apps to switch tabs when previewing notifications.</string>
 </dict>
 </plist>

@@ -44,8 +44,8 @@ fi
 # tmux context
 if [ -n "${TMUX_PANE:-}" ] && [ -n "${TMUX:-}" ]; then
     socket_path=$(echo "$TMUX" | cut -d, -f1)
-    session_name=$(tmux display-message -p '#{session_name}' 2>/dev/null || true)
-    client_tty=$(tmux display-message -p '#{client_tty}' 2>/dev/null || true)
+    session_name=$(tmux display-message -p -t "$TMUX_PANE" '#{session_name}' 2>/dev/null || true)
+    client_tty=$(tmux list-clients -t "$TMUX_PANE" -F '#{client_tty}' 2>/dev/null | head -1)
     env_json=$(printf '%s' "$env_json" | jq \
         --arg pane "$TMUX_PANE" --arg socket "$socket_path" \
         '. + {tmux_pane: $pane, tmux_socket_path: $socket}')

@@ -204,6 +204,23 @@ final class TerminalActivatorTests: XCTestCase {
         XCTAssertFalse(script!.contains("\n\" then"))
     }
 
+    // MARK: - indexOfTty
+
+    func testIndexOfTtyFindsPosition() {
+        let ttys = ["/dev/ttys006", "/dev/ttys005", "/dev/ttys003"]
+        XCTAssertEqual(TerminalActivator.indexOfTty("/dev/ttys006", in: ttys), 1)
+        XCTAssertEqual(TerminalActivator.indexOfTty("/dev/ttys005", in: ttys), 2)
+        XCTAssertEqual(TerminalActivator.indexOfTty("/dev/ttys003", in: ttys), 3)
+    }
+
+    func testIndexOfTtyReturnsNilWhenNotFound() {
+        XCTAssertNil(TerminalActivator.indexOfTty("/dev/ttys999", in: ["/dev/ttys001"]))
+    }
+
+    func testIndexOfTtyReturnsNilForEmptyList() {
+        XCTAssertNil(TerminalActivator.indexOfTty("/dev/ttys001", in: []))
+    }
+
     // MARK: - currentTabScript
 
     func testCurrentTabScriptGhostty() {

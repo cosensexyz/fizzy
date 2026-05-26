@@ -295,8 +295,13 @@ enum TerminalActivator {
         }
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         guard let output = String(data: data, encoding: .utf8) else { return nil }
-        let ttys = output.split(separator: "\n").map(String.init).sorted()
-        guard let position = ttys.firstIndex(of: targetTty) else { return nil }
+        // tmux list-clients returns clients in creation order, matching Ghostty's tab order.
+        let ttys = output.split(separator: "\n").map(String.init)
+        return Self.indexOfTty(targetTty, in: ttys)
+    }
+
+    static func indexOfTty(_ target: String, in ttys: [String]) -> Int? {
+        guard let position = ttys.firstIndex(of: target) else { return nil }
         return position + 1
     }
 
@@ -336,6 +341,7 @@ enum TerminalActivator {
             guard let index = tabIndex else { return nil }
             return """
             tell application "Ghostty"
+                activate
                 select tab (tab \(index) of front window)
             end tell
             """
@@ -345,6 +351,7 @@ enum TerminalActivator {
             if let safeTty = clientTty.map(sanitizeForAppleScript), sessionName == nil {
                 return """
                 tell application "iTerm2"
+                    activate
                     repeat with aWindow in windows
                         tell aWindow
                             repeat with aTab in tabs
@@ -363,6 +370,7 @@ enum TerminalActivator {
             }
             return """
             tell application "iTerm2"
+                activate
                 repeat with aWindow in windows
                     tell aWindow
                         repeat with aTab in tabs
@@ -381,6 +389,7 @@ enum TerminalActivator {
             guard let safeTty = clientTty.map(sanitizeForAppleScript) else { return nil }
             return """
             tell application "Terminal"
+                activate
                 repeat with aWindow in windows
                     repeat with aTab in tabs of aWindow
                         if tty of aTab is "\(safeTty)" then
