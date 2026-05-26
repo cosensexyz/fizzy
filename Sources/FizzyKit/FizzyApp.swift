@@ -87,6 +87,10 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
                 }
             }
         }
+        DistributedNotificationCenter.default().addObserver(
+            self, selector: #selector(handleActivateNotification),
+            name: SingleInstanceGuard.activateNotificationName, object: nil
+        )
     }
 
     private func handleNotification(agent: String, payload: any AgentPayload, env: EnvironmentContext) {
@@ -175,6 +179,10 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
             settingsPanel = SettingsPanel()
         }
         settingsPanel?.show()
+    }
+
+    @objc private func handleActivateNotification(_ notification: Notification) {
+        window.bounce()
     }
 
     public func applicationWillTerminate(_ notification: Notification) {
