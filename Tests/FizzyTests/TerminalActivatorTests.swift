@@ -103,28 +103,27 @@ final class TerminalActivatorTests: XCTestCase {
         wait(for: [hidden], timeout: 2.0)
     }
 
-    func testTabScriptGhosttyMatchesByName() {
+    func testTabScriptGhosttyUsesTabIndex() {
         let script = TerminalActivator.tabSwitchScript(
             bundleId: "com.mitchellh.ghostty",
             sessionName: "dev",
             clientTty: nil,
-            dirName: "project"
+            dirName: "project",
+            tabIndex: 2
         )
         XCTAssertNotNil(script)
         XCTAssertTrue(script!.contains("tell application \"Ghostty\""))
-        XCTAssertTrue(script!.contains("name of t contains \"dev\""))
-        XCTAssertTrue(script!.contains("select tab t"))
+        XCTAssertTrue(script!.contains("tab 2 of front window"))
     }
 
-    func testTabScriptGhosttyFallsToDirName() {
+    func testTabScriptGhosttyReturnsNilWithoutIndex() {
         let script = TerminalActivator.tabSwitchScript(
             bundleId: "com.mitchellh.ghostty",
-            sessionName: nil,
+            sessionName: "dev",
             clientTty: nil,
             dirName: "fizzy"
         )
-        XCTAssertNotNil(script)
-        XCTAssertTrue(script!.contains("name of t contains \"fizzy\""))
+        XCTAssertNil(script)
     }
 
     func testTabScriptIterm2MatchesBySessionName() {
@@ -195,7 +194,7 @@ final class TerminalActivatorTests: XCTestCase {
 
     func testTabScriptEscapesSpecialCharacters() {
         let script = TerminalActivator.tabSwitchScript(
-            bundleId: "com.mitchellh.ghostty",
+            bundleId: "com.googlecode.iterm2",
             sessionName: "has\"quotes\\and\nnewlines",
             clientTty: nil,
             dirName: "project"

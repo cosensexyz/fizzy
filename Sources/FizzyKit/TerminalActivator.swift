@@ -7,6 +7,7 @@ enum TerminalActivator {
     private static var _savedApp: NSRunningApplication?
     private static var _savedPaneId: String?
     private static var _savedPaneSocket: String?
+    private static var _savedSessionName: String?
     private static var _savedTabBundleId: String?
     private static var _savedTabId: String?
 
@@ -53,6 +54,7 @@ enum TerminalActivator {
                         selectTerminalTab(bundleId: bundleId, env: env, cwd: cwd)
                     }
                 }
+                _savedSessionName = currentTmuxSession(socketPath: env.tmuxSocketPath)
                 _savedPaneId = currentTmuxPane(socketPath: env.tmuxSocketPath)
                 _savedPaneSocket = env.tmuxSocketPath
                 selectTmuxPane(pane, socketPath: env.tmuxSocketPath)
@@ -115,6 +117,10 @@ enum TerminalActivator {
                     restoreTerminalTab(bundleId: bundleId, tabId: tabId)
                 }
             }
+            if let sessionName = _savedSessionName {
+                _savedSessionName = nil
+                switchTmuxSession(sessionName, socketPath: _savedPaneSocket)
+            }
             if let paneId = _savedPaneId {
                 selectTmuxPane(paneId, socketPath: _savedPaneSocket)
                 _savedPaneId = nil
@@ -132,6 +138,7 @@ enum TerminalActivator {
             _savedApp = nil
             _savedPaneId = nil
             _savedPaneSocket = nil
+            _savedSessionName = nil
             _savedTabBundleId = nil
             _savedTabId = nil
             _inPreview = false
@@ -215,7 +222,23 @@ enum TerminalActivator {
         }
     }
 
-    private static func currentTmuxPane(socketPath: String?) -> String? {
+    private static func switchTmuxSession(_ session: String, socketPath: String?) {
+        guard let tmux = tmuxPath else { return }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: tmux)
+        var args = [String]()
+        if let socket = socketPath {
+            args += ["-S", socket]
+        }
+        args += ["switch-client", "-t", session]
+        process.arguments = args
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
+        process.waitUntilExit()
+    }
+
+    private static func tmuxQuery(socketPath: String?, format: String, validate: ((String) -> Bool)? = nil) -> String? {
         guard let tmux = tmuxPath else { return nil }
         let process = Process()
         process.executableURL = URL(fileURLWithPath: tmux)
@@ -223,7 +246,7 @@ enum TerminalActivator {
         if let socket = socketPath {
             args += ["-S", socket]
         }
-        args += ["display-message", "-p", "#{pane_id}"]
+        args += ["display-message", "-p", format]
         process.arguments = args
         let pipe = Pipe()
         process.standardOutput = pipe
@@ -236,8 +259,45 @@ enum TerminalActivator {
         }
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         guard let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
-              output.range(of: #"^%\d+$"#, options: .regularExpression) != nil else { return nil }
+              !output.isEmpty else { return nil }
+        if let validate, !validate(output) { return nil }
         return output
+    }
+
+    private static func currentTmuxPane(socketPath: String?) -> String? {
+        tmuxQuery(socketPath: socketPath, format: "#{pane_id}") {
+            $0.range(of: #"^%\d+$"#, options: .regularExpression) != nil
+        }
+    }
+
+    private static func currentTmuxSession(socketPath: String?) -> String? {
+        tmuxQuery(socketPath: socketPath, format: "#{client_session}")
+    }
+
+    static func tabIndexForClientTty(_ targetTty: String, socketPath: String?) -> Int? {
+        guard let tmux = tmuxPath else { return nil }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: tmux)
+        var args = [String]()
+        if let socket = socketPath {
+            args += ["-S", socket]
+        }
+        args += ["list-clients", "-F", "#{client_tty}"]
+        process.arguments = args
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            return nil
+        }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let output = String(data: data, encoding: .utf8) else { return nil }
+        let ttys = output.split(separator: "\n").map(String.init).sorted()
+        guard let position = ttys.firstIndex(of: targetTty) else { return nil }
+        return position + 1
     }
 
     private static func raiseWindow(matching dirName: String, appName: String) {
@@ -265,23 +325,18 @@ enum TerminalActivator {
         bundleId: String,
         sessionName: String?,
         clientTty: String?,
-        dirName: String
+        dirName: String,
+        tabIndex: Int? = nil
     ) -> String? {
         let matchName = sessionName ?? dirName
         let safeName = sanitizeForAppleScript(matchName)
 
         switch bundleId {
         case "com.mitchellh.ghostty":
+            guard let index = tabIndex else { return nil }
             return """
             tell application "Ghostty"
-                repeat with w in windows
-                    repeat with t in tabs of w
-                        if name of t contains "\(safeName)" then
-                            select tab t
-                            return
-                        end if
-                    end repeat
-                end repeat
+                select tab (tab \(index) of front window)
             end tell
             """
 
@@ -438,11 +493,15 @@ enum TerminalActivator {
 
     private static func selectTerminalTab(bundleId: String, env: EnvironmentContext, cwd: String) {
         let dirName = URL(fileURLWithPath: cwd).lastPathComponent
+        let tabIndex = env.tmuxClientTty.flatMap {
+            tabIndexForClientTty($0, socketPath: env.tmuxSocketPath)
+        }
         guard let script = tabSwitchScript(
             bundleId: bundleId,
             sessionName: env.tmuxSessionName,
             clientTty: env.tmuxClientTty,
-            dirName: dirName
+            dirName: dirName,
+            tabIndex: tabIndex
         ) else { return }
         guard let appleScript = NSAppleScript(source: script) else { return }
         appleScript.executeAndReturnError(nil)
