@@ -8,6 +8,7 @@ public final class FizzyWindow: NSWindow {
     public var onPetClicked: (() -> Void)?
     public var onPetHoverEnter: (() -> Void)?
     public var onPetHoverExit: (() -> Void)?
+    public var onSettingsClicked: (() -> Void)?
     private var mouseDownOrigin: NSPoint?
     private var hoverTrackingArea: NSTrackingArea?
 
@@ -96,8 +97,16 @@ public final class FizzyWindow: NSWindow {
 
     public func contextMenu() -> NSMenu {
         let menu = NSMenu()
+        let settingsItem = NSMenuItem(title: "Settings...", action: #selector(settingsClicked), keyEquivalent: "")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+        menu.addItem(NSMenuItem.separator())
         menu.addItem(withTitle: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
         return menu
+    }
+
+    @objc private func settingsClicked() {
+        onSettingsClicked?()
     }
 
     public override func rightMouseDown(with event: NSEvent) {

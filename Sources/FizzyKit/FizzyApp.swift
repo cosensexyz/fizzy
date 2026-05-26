@@ -11,6 +11,8 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
     private var petToListOffset = NSPoint.zero
     private var isRepositioning = false
     private var listDismissTimer: Timer?
+    private var cycleController: CycleSessionController!
+    private var settingsPanel: SettingsPanel?
 
     public override init() {
         super.init()
@@ -24,6 +26,7 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
         window.onPetClicked = { [weak self] in self?.toggleList() }
         window.onPetHoverEnter = { [weak self] in self?.showList() }
         window.onPetHoverExit = { [weak self] in self?.scheduleHideList() }
+        window.onSettingsClicked = { [weak self] in self?.showSettings() }
 
         NotificationCenter.default.addObserver(
             self, selector: #selector(windowDidMove),
@@ -55,6 +58,20 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
         } catch {
             NSLog("FizzyServer failed to start: \(error)")
         }
+
+        cycleController = CycleSessionController(store: store)
+        cycleController.onOpenSession = { [weak self] item in
+            self?.openSession(item)
+            self?.updateFizzyState()
+            if self?.listVisible == true { self?.listPanel.reload() }
+        }
+
+        HotkeyManager.onSessionStart = { [weak self] in self?.cycleController.startSession() }
+        HotkeyManager.onCycleForward = { [weak self] in self?.cycleController.cycleForward() }
+        HotkeyManager.onCycleBackward = { [weak self] in self?.cycleController.cycleBackward() }
+        HotkeyManager.onActivate = { [weak self] in self?.cycleController.activate() }
+        HotkeyManager.onCancel = { [weak self] in self?.cycleController.cancel() }
+        HotkeyManager.install()
     }
 
     private func handleNotification(agent: String, payload: any AgentPayload, env: EnvironmentContext) {
@@ -136,6 +153,13 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
 
     private func updateFizzyState() {
         window.updateFizzyState(unreadCount: store.unreadCount)
+    }
+
+    private func showSettings() {
+        if settingsPanel == nil {
+            settingsPanel = SettingsPanel()
+        }
+        settingsPanel?.show()
     }
 
     public func applicationWillTerminate(_ notification: Notification) {
