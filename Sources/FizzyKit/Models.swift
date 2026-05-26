@@ -86,22 +86,29 @@ public struct EnvironmentContext: Codable, Sendable {
     public let terminalPid: Int?
     public let tmuxPane: String?
     public let tmuxSocketPath: String?
+    public let tmuxSessionName: String?
+    public let tmuxClientTty: String?
     public let gitBranch: String?
 
     enum CodingKeys: String, CodingKey {
         case terminalPid = "terminal_pid"
         case tmuxPane = "tmux_pane"
         case tmuxSocketPath = "tmux_socket_path"
+        case tmuxSessionName = "tmux_session_name"
+        case tmuxClientTty = "tmux_client_tty"
         case gitBranch = "git_branch"
     }
 
     public init(
         terminalPid: Int? = nil, tmuxPane: String? = nil,
-        tmuxSocketPath: String? = nil, gitBranch: String? = nil
+        tmuxSocketPath: String? = nil, tmuxSessionName: String? = nil,
+        tmuxClientTty: String? = nil, gitBranch: String? = nil
     ) {
         self.terminalPid = terminalPid
         self.tmuxPane = tmuxPane
         self.tmuxSocketPath = tmuxSocketPath
+        self.tmuxSessionName = tmuxSessionName
+        self.tmuxClientTty = tmuxClientTty
         self.gitBranch = gitBranch
     }
 }
