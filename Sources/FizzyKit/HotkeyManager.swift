@@ -26,6 +26,8 @@ public enum HotkeyManager {
     private static var _config = CycleConfig.load()
     private static var eventTap: CFMachPort?
     private static var runLoopSource: CFRunLoopSource?
+    static var _accessibilityCheck: (() -> Bool)?
+    private static var _loggedAccessibilityWarning = false
 
     public static var onSessionStart: (() -> Void)?
     public static var onSessionStartBackward: (() -> Void)?
@@ -76,9 +78,28 @@ public enum HotkeyManager {
 
     // MARK: - Tap lifecycle
 
-    public static func install() {
-        guard eventTap == nil else { return }
-        guard AXIsProcessTrusted() else { return }
+    @discardableResult
+    public static func install(prompt: Bool = false) -> Bool {
+        guard eventTap == nil else { return true }
+
+        let trusted: Bool
+        if let check = _accessibilityCheck {
+            trusted = check()
+        } else if prompt {
+            trusted = AXIsProcessTrustedWithOptions(
+                [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+            )
+        } else {
+            trusted = AXIsProcessTrusted()
+        }
+
+        guard trusted else {
+            if !_loggedAccessibilityWarning {
+                NSLog("HotkeyManager: Accessibility not granted – shortcut inactive")
+                _loggedAccessibilityWarning = true
+            }
+            return false
+        }
 
         let mask: CGEventMask = (1 << CGEventType.keyDown.rawValue) |
                                 (1 << CGEventType.flagsChanged.rawValue)
@@ -92,12 +113,17 @@ public enum HotkeyManager {
                 HotkeyManager.handleTapEvent(type: type, event: event)
             },
             userInfo: nil
-        ) else { return }
+        ) else {
+            NSLog("HotkeyManager: CGEvent tap creation failed")
+            return false
+        }
 
         eventTap = tap
         runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource!, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
+        NSLog("HotkeyManager: event tap installed")
+        return true
     }
 
     public static func uninstall() {
@@ -110,6 +136,7 @@ public enum HotkeyManager {
         eventTap = nil
         runLoopSource = nil
         state = .idle
+        _loggedAccessibilityWarning = false
     }
 
     public static func updateConfig(_ config: CycleConfig) {

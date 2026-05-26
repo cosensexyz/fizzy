@@ -168,6 +168,17 @@ final class HotkeyManagerTests: XCTestCase {
         XCTAssertNil(result)
     }
 
+    // MARK: - Install behavior
+
+    func testInstallReturnsFalseWithoutAccessibility() {
+        HotkeyManager.uninstall()
+        HotkeyManager._accessibilityCheck = { false }
+        defer { HotkeyManager._accessibilityCheck = nil }
+
+        XCTAssertFalse(HotkeyManager.install())
+        XCTAssertEqual(HotkeyManager.state, .idle)
+    }
+
     // MARK: - Extra modifiers allowed
 
     func testExtraModifiersStillMatch() {

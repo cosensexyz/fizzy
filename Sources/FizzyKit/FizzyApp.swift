@@ -13,6 +13,7 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
     private var listDismissTimer: Timer?
     private var cycleController: CycleSessionController!
     private var settingsPanel: SettingsPanel?
+    private var accessibilityTimer: Timer?
 
     public override init() {
         super.init()
@@ -76,7 +77,14 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
         HotkeyManager.onCycleBackward = { [weak self] in self?.cycleController.cycleBackward() }
         HotkeyManager.onActivate = { [weak self] in self?.cycleController.activate() }
         HotkeyManager.onCancel = { [weak self] in self?.cycleController.cancel() }
-        HotkeyManager.install()
+        if !HotkeyManager.install(prompt: true) {
+            accessibilityTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                if HotkeyManager.install() {
+                    self?.accessibilityTimer?.invalidate()
+                    self?.accessibilityTimer = nil
+                }
+            }
+        }
     }
 
     private func handleNotification(agent: String, payload: any AgentPayload, env: EnvironmentContext) {
@@ -168,6 +176,7 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
     }
 
     public func applicationWillTerminate(_ notification: Notification) {
+        accessibilityTimer?.invalidate()
         server?.stop()
     }
 }
