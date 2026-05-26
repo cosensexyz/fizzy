@@ -50,6 +50,8 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
         )
 
         menuBar = MenuBarController()
+        menuBar.onSettingsClicked = { [weak self] in self?.showSettings() }
+        menuBar.install()
 
         server = FizzyServer(port: 7319) { [weak self] agent, payload, env in
             DispatchQueue.main.async { [weak self] in
