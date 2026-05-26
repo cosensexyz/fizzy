@@ -113,6 +113,7 @@ final class TerminalActivatorTests: XCTestCase {
         )
         XCTAssertNotNil(script)
         XCTAssertTrue(script!.contains("tell application \"Ghostty\""))
+        XCTAssertTrue(script!.contains("activate"))
         XCTAssertTrue(script!.contains("tab 2 of front window"))
     }
 
@@ -135,6 +136,7 @@ final class TerminalActivatorTests: XCTestCase {
         )
         XCTAssertNotNil(script)
         XCTAssertTrue(script!.contains("tell application \"iTerm2\""))
+        XCTAssertTrue(script!.contains("activate"))
         XCTAssertTrue(script!.contains("name of current session of aTab contains \"work\""))
     }
 
@@ -146,6 +148,7 @@ final class TerminalActivatorTests: XCTestCase {
             dirName: "project"
         )
         XCTAssertNotNil(script)
+        XCTAssertTrue(script!.contains("activate"))
         XCTAssertTrue(script!.contains("tty of aSession is \"/dev/ttys007\""))
     }
 
@@ -169,6 +172,7 @@ final class TerminalActivatorTests: XCTestCase {
         )
         XCTAssertNotNil(script)
         XCTAssertTrue(script!.contains("tell application \"Terminal\""))
+        XCTAssertTrue(script!.contains("activate"))
         XCTAssertTrue(script!.contains("tty of aTab is \"/dev/ttys005\""))
     }
 

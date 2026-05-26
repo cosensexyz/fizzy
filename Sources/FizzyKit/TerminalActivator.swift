@@ -1,6 +1,8 @@
 import AppKit
 
 enum TerminalActivator {
+    // queue: state mutations + tmux CLI. scriptQueue: AppleScript (may block on Automation consent).
+    // Tab and pane switching run concurrently by design to avoid AppleScript blocking tmux ops.
     private static let queue = DispatchQueue(label: "com.fizzy.terminal-activator")
     private static let scriptQueue = DispatchQueue(label: "com.fizzy.applescript")
     private static var _inPreview = false
@@ -50,7 +52,8 @@ enum TerminalActivator {
                 if let bundleId {
                     _savedTabBundleId = bundleId
                     scriptQueue.async {
-                        _savedTabId = queryCurrentTab(bundleId: bundleId)
+                        let tabId = queryCurrentTab(bundleId: bundleId)
+                        queue.async { _savedTabId = tabId }
                         selectTerminalTab(bundleId: bundleId, env: env, cwd: cwd)
                     }
                 }
@@ -271,7 +274,9 @@ enum TerminalActivator {
     }
 
     private static func currentTmuxSession(socketPath: String?) -> String? {
-        tmuxQuery(socketPath: socketPath, format: "#{client_session}")
+        tmuxQuery(socketPath: socketPath, format: "#{client_session}") {
+            $0.range(of: #"^[\w.-]+$"#, options: .regularExpression) != nil
+        }
     }
 
     static func tabIndexForClientTty(_ targetTty: String, socketPath: String?) -> Int? {
@@ -333,12 +338,9 @@ enum TerminalActivator {
         dirName: String,
         tabIndex: Int? = nil
     ) -> String? {
-        let matchName = sessionName ?? dirName
-        let safeName = sanitizeForAppleScript(matchName)
-
         switch bundleId {
         case "com.mitchellh.ghostty":
-            guard let index = tabIndex else { return nil }
+            guard let index = tabIndex, index > 0 else { return nil }
             return """
             tell application "Ghostty"
                 activate
@@ -347,6 +349,8 @@ enum TerminalActivator {
             """
 
         case "com.googlecode.iterm2":
+            let matchName = sessionName ?? dirName
+            let safeName = sanitizeForAppleScript(matchName)
             // Priority: sessionName > clientTty > dirName
             if let safeTty = clientTty.map(sanitizeForAppleScript), sessionName == nil {
                 return """
@@ -450,14 +454,14 @@ enum TerminalActivator {
     static func tabRestoreScript(bundleId: String, tabId: String) -> String? {
         switch bundleId {
         case "com.mitchellh.ghostty":
-            guard let index = Int(tabId) else { return nil }
+            guard let index = Int(tabId), index > 0 else { return nil }
             return """
             tell application "Ghostty"
                 select tab (tab \(index) of front window)
             end tell
             """
         case "com.googlecode.iterm2":
-            guard let index = Int(tabId) else { return nil }
+            guard let index = Int(tabId), index > 0 else { return nil }
             return """
             tell application "iTerm2"
                 tell current window
