@@ -9,6 +9,12 @@ final class TerminalActivatorTests: XCTestCase {
         }
     }
 
+    func testTmuxPathResolvesOnDeveloperMachine() {
+        if let path = TerminalActivator.tmuxPath {
+            XCTAssertTrue(FileManager.default.isExecutableFile(atPath: path))
+        }
+    }
+
     func testBuildTmuxArgsWithSocket() {
         let args = TerminalActivator.tmuxArgs(pane: "%3", socketPath: "/tmp/tmux-501/default", command: "select-window")
         XCTAssertEqual(args, ["-S", "/tmp/tmux-501/default", "select-window", "-t", "%3"])
