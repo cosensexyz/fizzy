@@ -176,6 +176,18 @@ public struct NotificationResponse: Codable, Sendable {
     }
 }
 
+// MARK: - Session end request
+
+public struct SessionEndRequest: Codable, Sendable {
+    public let agent: String
+    public let sessionId: String
+
+    enum CodingKeys: String, CodingKey {
+        case agent
+        case sessionId = "session_id"
+    }
+}
+
 // MARK: - NotificationItem
 
 public struct NotificationItem: Identifiable, Sendable {

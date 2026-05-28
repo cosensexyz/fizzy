@@ -219,6 +219,19 @@ final class ModelsTests: XCTestCase {
         XCTAssertNil(notification.env.gitBranch)
     }
 
+    // MARK: - SessionEndRequest
+
+    func testDecodeSessionEndRequest() throws {
+        let json = """
+        {"agent": "claude_code", "session_id": "abc123"}
+        """.data(using: .utf8)!
+
+        let req = try JSONDecoder().decode(SessionEndRequest.self, from: json)
+
+        XCTAssertEqual(req.agent, "claude_code")
+        XCTAssertEqual(req.sessionId, "abc123")
+    }
+
     // MARK: - NotificationResponse (unchanged)
 
     func testEncodeNotificationResponseSimple() throws {
