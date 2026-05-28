@@ -32,6 +32,10 @@ public final class NotificationStore {
         items.removeAll { $0.id == id }
     }
 
+    public func endSession(agent: String, sessionId: String) {
+        items.removeAll { $0.agent == agent && $0.notification.sessionId == sessionId }
+    }
+
     public func markAllRead() {
         for i in items.indices {
             items[i].isRead = true

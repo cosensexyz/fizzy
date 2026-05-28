@@ -117,4 +117,38 @@ final class NotificationStoreTests: XCTestCase {
         XCTAssertFalse(store.items[0].isRead)
         XCTAssertEqual(store.unreadCount, 1)
     }
+
+    func testEndSessionRemovesMatchingItem() {
+        let store = NotificationStore()
+        _ = store.add(makePayload(message: "active", sessionId: "s1"), agent: "claude_code")
+        _ = store.add(makePayload(message: "other", sessionId: "s2"), agent: "claude_code")
+
+        store.endSession(agent: "claude_code", sessionId: "s1")
+
+        XCTAssertEqual(store.items.count, 1)
+        XCTAssertEqual(store.items[0].notification.message, "other")
+    }
+
+    func testEndSessionDoesNotRemoveOtherAgents() {
+        let store = NotificationStore()
+        _ = store.add(makePayload(message: "claude", sessionId: "s1"), agent: "claude_code")
+        _ = store.add(
+            GenericPayload(message: "codex", cwd: "/tmp", sessionId: "s1"),
+            agent: "codex"
+        )
+
+        store.endSession(agent: "claude_code", sessionId: "s1")
+
+        XCTAssertEqual(store.items.count, 1)
+        XCTAssertEqual(store.items[0].notification.message, "codex")
+    }
+
+    func testEndSessionNoMatchIsNoop() {
+        let store = NotificationStore()
+        _ = store.add(makePayload(message: "active", sessionId: "s1"), agent: "claude_code")
+
+        store.endSession(agent: "claude_code", sessionId: "nonexistent")
+
+        XCTAssertEqual(store.items.count, 1)
+    }
 }
