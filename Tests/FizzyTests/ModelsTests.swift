@@ -84,6 +84,16 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(payload.title, "Alert")
     }
 
+    func testDecodeGenericPayloadWithSessionId() throws {
+        let json = """
+        {"message": "hi", "cwd": "/tmp", "session_id": "codex-123"}
+        """.data(using: .utf8)!
+
+        let payload = try JSONDecoder().decode(GenericPayload.self, from: json)
+
+        XCTAssertEqual(payload.sessionId, "codex-123")
+    }
+
     // MARK: - EnvironmentContext
 
     func testDecodeEnvironmentContextFull() throws {
@@ -207,6 +217,19 @@ final class ModelsTests: XCTestCase {
         XCTAssertNil(notification.env.terminalPid)
         XCTAssertNil(notification.env.tmuxPane)
         XCTAssertNil(notification.env.gitBranch)
+    }
+
+    // MARK: - SessionEndRequest
+
+    func testDecodeSessionEndRequest() throws {
+        let json = """
+        {"agent": "claude_code", "session_id": "abc123"}
+        """.data(using: .utf8)!
+
+        let req = try JSONDecoder().decode(SessionEndRequest.self, from: json)
+
+        XCTAssertEqual(req.agent, "claude_code")
+        XCTAssertEqual(req.sessionId, "abc123")
     }
 
     // MARK: - NotificationResponse (unchanged)

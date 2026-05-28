@@ -40,6 +40,7 @@ install: build-release
 	install -d $(BINDIR)
 	ln -sf $(APP_BIN) $(BINDIR)/fizzy
 	install -m 755 scripts/notify-fizzy.sh $(BINDIR)/notify-fizzy
+	install -m 755 scripts/session-end-fizzy.sh $(BINDIR)/session-end-fizzy
 	@# --- LaunchAgent ---
 	install -d $(AGENT_DIR)
 	sed 's|/usr/local/bin/fizzy|$(APP_BIN)|' $(PLIST) > $(AGENT_DIR)/$(LABEL).plist
@@ -49,7 +50,7 @@ install: build-release
 uninstall:
 	-launchctl bootout gui/$$(id -u)/$(LABEL) 2>/dev/null
 	rm -rf $(APP_PATH)
-	rm -f $(BINDIR)/fizzy $(BINDIR)/notify-fizzy
+	rm -f $(BINDIR)/fizzy $(BINDIR)/notify-fizzy $(BINDIR)/session-end-fizzy
 	rm -f $(AGENT_DIR)/$(LABEL).plist
 
 build-release:
@@ -76,6 +77,8 @@ pkg: build-release
 	ln -sf $(APP_BIN) $(PKG_ROOT)/usr/local/bin/fizzy
 	cp scripts/notify-fizzy.sh $(PKG_ROOT)/usr/local/bin/notify-fizzy
 	chmod 755 $(PKG_ROOT)/usr/local/bin/notify-fizzy
+	cp scripts/session-end-fizzy.sh $(PKG_ROOT)/usr/local/bin/session-end-fizzy
+	chmod 755 $(PKG_ROOT)/usr/local/bin/session-end-fizzy
 	sed 's|/usr/local/bin/fizzy|$(APP_BIN)|' $(PLIST) \
 		> $(PKG_ROOT)/Library/LaunchAgents/$(LABEL).plist
 	cp scripts/postinstall $(PKG_SCRIPTS)/postinstall

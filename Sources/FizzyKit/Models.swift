@@ -57,11 +57,13 @@ public struct GenericPayload: AgentPayload {
     public let cwd: String
     public let notificationType: String
     public let title: String?
+    public let sessionId: String?
 
     enum CodingKeys: String, CodingKey {
         case message, cwd
         case notificationType = "notification_type"
         case title
+        case sessionId = "session_id"
     }
 
     public init(from decoder: Decoder) throws {
@@ -70,13 +72,15 @@ public struct GenericPayload: AgentPayload {
         cwd = try container.decode(String.self, forKey: .cwd)
         notificationType = try container.decodeIfPresent(String.self, forKey: .notificationType) ?? "notification"
         title = try container.decodeIfPresent(String.self, forKey: .title)
+        sessionId = try container.decodeIfPresent(String.self, forKey: .sessionId)
     }
 
-    public init(message: String, cwd: String, notificationType: String = "notification", title: String? = nil) {
+    public init(message: String, cwd: String, notificationType: String = "notification", title: String? = nil, sessionId: String? = nil) {
         self.message = message
         self.cwd = cwd
         self.notificationType = notificationType
         self.title = title
+        self.sessionId = sessionId
     }
 }
 
@@ -169,6 +173,23 @@ public struct NotificationResponse: Codable, Sendable {
             self.hookEventName = hookEventName
             self.additionalContext = additionalContext
         }
+    }
+}
+
+// MARK: - Session end request
+
+public struct SessionEndRequest: Codable, Sendable {
+    public let agent: String
+    public let sessionId: String
+
+    enum CodingKeys: String, CodingKey {
+        case agent
+        case sessionId = "session_id"
+    }
+
+    public init(agent: String, sessionId: String) {
+        self.agent = agent
+        self.sessionId = sessionId
     }
 }
 

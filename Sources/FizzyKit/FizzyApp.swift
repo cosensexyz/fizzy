@@ -53,11 +53,19 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
         menuBar.onSettingsClicked = { [weak self] in self?.showSettings() }
         menuBar.install()
 
-        server = FizzyServer(port: 7319) { [weak self] agent, payload, env in
-            DispatchQueue.main.async { [weak self] in
-                self?.handleNotification(agent: agent, payload: payload, env: env)
+        server = FizzyServer(
+            port: 7319,
+            onNotification: { [weak self] agent, payload, env in
+                DispatchQueue.main.async { [weak self] in
+                    self?.handleNotification(agent: agent, payload: payload, env: env)
+                }
+            },
+            onSessionEnd: { [weak self] req in
+                DispatchQueue.main.async { [weak self] in
+                    self?.handleSessionEnd(req)
+                }
             }
-        }
+        )
 
         do {
             try server.start()
@@ -100,6 +108,12 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
         toastManager.show(item: item, relativeTo: window) { [weak self] item in
             self?.openSession(item)
         }
+    }
+
+    private func handleSessionEnd(_ req: SessionEndRequest) {
+        store.endSession(agent: req.agent, sessionId: req.sessionId)
+        window.updateFizzyState(unreadCount: store.unreadCount)
+        if listVisible { listPanel.reload() }
     }
 
     @objc private func windowDidMove(_ notification: Notification) {

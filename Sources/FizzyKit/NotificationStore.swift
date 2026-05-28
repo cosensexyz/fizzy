@@ -16,7 +16,7 @@ public final class NotificationStore {
         env: EnvironmentContext = EnvironmentContext()
     ) -> NotificationItem {
         if let sid = notification.sessionId {
-            items.removeAll { $0.notification.sessionId == sid }
+            items.removeAll { $0.agent == agent && $0.notification.sessionId == sid }
         }
         let item = NotificationItem(agent: agent, notification: notification, env: env)
         items.insert(item, at: 0)
@@ -30,6 +30,10 @@ public final class NotificationStore {
 
     public func dismiss(id: UUID) {
         items.removeAll { $0.id == id }
+    }
+
+    public func endSession(agent: String, sessionId: String) {
+        items.removeAll { $0.agent == agent && $0.notification.sessionId == sessionId }
     }
 
     public func markAllRead() {
