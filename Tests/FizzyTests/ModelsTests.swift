@@ -84,6 +84,16 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(payload.title, "Alert")
     }
 
+    func testDecodeGenericPayloadWithSessionId() throws {
+        let json = """
+        {"message": "hi", "cwd": "/tmp", "session_id": "codex-123"}
+        """.data(using: .utf8)!
+
+        let payload = try JSONDecoder().decode(GenericPayload.self, from: json)
+
+        XCTAssertEqual(payload.sessionId, "codex-123")
+    }
+
     // MARK: - EnvironmentContext
 
     func testDecodeEnvironmentContextFull() throws {
