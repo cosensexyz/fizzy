@@ -8,12 +8,12 @@ public final class FizzyServer: @unchecked Sendable {
     private let group: MultiThreadedEventLoopGroup
     private var channel: Channel?
     private let onNotification: @Sendable (String, any AgentPayload, EnvironmentContext) -> Void
-    private let onSessionEnd: @Sendable (String, String) -> Void
+    private let onSessionEnd: @Sendable (SessionEndRequest) -> Void
 
     public init(
         port: Int,
         onNotification: @escaping @Sendable (String, any AgentPayload, EnvironmentContext) -> Void,
-        onSessionEnd: @escaping @Sendable (String, String) -> Void
+        onSessionEnd: @escaping @Sendable (SessionEndRequest) -> Void
     ) {
         self.port = port
         self.group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
@@ -48,13 +48,13 @@ private final class RequestHandler: ChannelInboundHandler, RemovableChannelHandl
     typealias OutboundOut = HTTPServerResponsePart
 
     private let onNotification: @Sendable (String, any AgentPayload, EnvironmentContext) -> Void
-    private let onSessionEnd: @Sendable (String, String) -> Void
+    private let onSessionEnd: @Sendable (SessionEndRequest) -> Void
     private var requestHead: HTTPRequestHead?
     private var body = ByteBuffer()
 
     init(
         onNotification: @escaping @Sendable (String, any AgentPayload, EnvironmentContext) -> Void,
-        onSessionEnd: @escaping @Sendable (String, String) -> Void
+        onSessionEnd: @escaping @Sendable (SessionEndRequest) -> Void
     ) {
         self.onNotification = onNotification
         self.onSessionEnd = onSessionEnd
@@ -99,7 +99,7 @@ private final class RequestHandler: ChannelInboundHandler, RemovableChannelHandl
                 return
             }
             respond(context: context, status: .ok, json: #"{"ok":true}"#)
-            onSessionEnd(req.agent, req.sessionId)
+            onSessionEnd(req)
 
         default:
             respond(context: context, status: .notFound, json: #"{"error":"not found"}"#)

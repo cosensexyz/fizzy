@@ -98,6 +98,21 @@ final class NotificationStoreTests: XCTestCase {
         XCTAssertEqual(store.items[1].notification.message, "claude")
     }
 
+    func testAddDedupsGenericPayloadBySessionId() {
+        let store = NotificationStore()
+        _ = store.add(
+            GenericPayload(message: "first", cwd: "/tmp", sessionId: "s1"),
+            agent: "codex"
+        )
+        _ = store.add(
+            GenericPayload(message: "second", cwd: "/tmp", sessionId: "s1"),
+            agent: "codex"
+        )
+
+        XCTAssertEqual(store.items.count, 1)
+        XCTAssertEqual(store.items[0].notification.message, "second")
+    }
+
     func testAddDoesNotDedupGenericPayload() {
         let store = NotificationStore()
         let first = GenericPayload(message: "first", cwd: "/tmp")

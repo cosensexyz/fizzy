@@ -186,6 +186,11 @@ public struct SessionEndRequest: Codable, Sendable {
         case agent
         case sessionId = "session_id"
     }
+
+    public init(agent: String, sessionId: String) {
+        self.agent = agent
+        self.sessionId = sessionId
+    }
 }
 
 // MARK: - NotificationItem

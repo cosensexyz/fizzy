@@ -18,7 +18,7 @@ final class FizzyServerTests: XCTestCase {
             XCTAssertEqual(payload.message, "hello from envelope")
             XCTAssertEqual(env.gitBranch, "main")
             expectation.fulfill()
-        }, onSessionEnd: { _, _ in })
+        }, onSessionEnd: { _ in })
         try server.start()
         defer { server.stop() }
 
@@ -42,7 +42,7 @@ final class FizzyServerTests: XCTestCase {
     }
 
     func testLegacyEndpointRemoved() async throws {
-        let server = FizzyServer(port: 17320, onNotification: { _, _, _ in }, onSessionEnd: { _, _ in })
+        let server = FizzyServer(port: 17320, onNotification: { _, _, _ in }, onSessionEnd: { _ in })
         try server.start()
         defer { server.stop() }
 
@@ -59,9 +59,9 @@ final class FizzyServerTests: XCTestCase {
         var receivedAgent: String?
         var receivedSessionId: String?
 
-        let server = FizzyServer(port: 17322, onNotification: { _, _, _ in }, onSessionEnd: { agent, sessionId in
-            receivedAgent = agent
-            receivedSessionId = sessionId
+        let server = FizzyServer(port: 17322, onNotification: { _, _, _ in }, onSessionEnd: { req in
+            receivedAgent = req.agent
+            receivedSessionId = req.sessionId
             expectation.fulfill()
         })
         try server.start()
@@ -81,7 +81,7 @@ final class FizzyServerTests: XCTestCase {
     }
 
     func testWrongPathReturns404() async throws {
-        let server = FizzyServer(port: 17321, onNotification: { _, _, _ in }, onSessionEnd: { _, _ in })
+        let server = FizzyServer(port: 17321, onNotification: { _, _, _ in }, onSessionEnd: { _ in })
         try server.start()
         defer { server.stop() }
 

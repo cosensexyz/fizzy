@@ -60,9 +60,9 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
                     self?.handleNotification(agent: agent, payload: payload, env: env)
                 }
             },
-            onSessionEnd: { [weak self] agent, sessionId in
+            onSessionEnd: { [weak self] req in
                 DispatchQueue.main.async { [weak self] in
-                    self?.handleSessionEnd(agent: agent, sessionId: sessionId)
+                    self?.handleSessionEnd(req)
                 }
             }
         )
@@ -110,8 +110,8 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func handleSessionEnd(agent: String, sessionId: String) {
-        store.endSession(agent: agent, sessionId: sessionId)
+    private func handleSessionEnd(_ req: SessionEndRequest) {
+        store.endSession(agent: req.agent, sessionId: req.sessionId)
         window.updateFizzyState(unreadCount: store.unreadCount)
         if listVisible { listPanel.reload() }
     }
