@@ -53,11 +53,11 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
         menuBar.onSettingsClicked = { [weak self] in self?.showSettings() }
         menuBar.install()
 
-        server = FizzyServer(port: 7319) { [weak self] agent, payload, env in
+        server = FizzyServer(port: 7319, onNotification: { [weak self] agent, payload, env in
             DispatchQueue.main.async { [weak self] in
                 self?.handleNotification(agent: agent, payload: payload, env: env)
             }
-        }
+        }, onSessionEnd: { _, _ in })
 
         do {
             try server.start()

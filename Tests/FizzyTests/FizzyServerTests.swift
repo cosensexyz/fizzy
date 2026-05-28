@@ -13,12 +13,12 @@ final class FizzyServerTests: XCTestCase {
 
     func testEnvelopeEndpoint() async throws {
         let expectation = expectation(description: "callback")
-        let server = FizzyServer(port: 17319) { agent, payload, env in
+        let server = FizzyServer(port: 17319, onNotification: { agent, payload, env in
             XCTAssertEqual(agent, "claude_code")
             XCTAssertEqual(payload.message, "hello from envelope")
             XCTAssertEqual(env.gitBranch, "main")
             expectation.fulfill()
-        }
+        }, onSessionEnd: { _, _ in })
         try server.start()
         defer { server.stop() }
 
@@ -41,30 +41,47 @@ final class FizzyServerTests: XCTestCase {
         await fulfillment(of: [expectation], timeout: 2)
     }
 
-    func testLegacyEndpointBackwardCompat() async throws {
-        let expectation = expectation(description: "callback")
-        let server = FizzyServer(port: 17320) { agent, payload, env in
-            XCTAssertEqual(agent, "claude_code")
-            XCTAssertEqual(payload.message, "hello legacy")
-            XCTAssertNil(env.gitBranch)
-            expectation.fulfill()
-        }
+    func testLegacyEndpointRemoved() async throws {
+        let server = FizzyServer(port: 17320, onNotification: { _, _, _ in }, onSessionEnd: { _, _ in })
         try server.start()
         defer { server.stop() }
 
         let json = """
         {"session_id":"s1","transcript_path":"/tmp/t","cwd":"/tmp","hook_event_name":"Notification","message":"hello legacy","notification_type":"idle_prompt"}
         """
-        let (data, response) = try await post(port: 17320, path: "/claudecode/notification", json: json)
+        let (_, response) = try await post(port: 17320, path: "/claudecode/notification", json: json)
+
+        XCTAssertEqual(response.statusCode, 404)
+    }
+
+    func testSessionEndEndpoint() async throws {
+        let expectation = expectation(description: "session-end callback")
+        var receivedAgent: String?
+        var receivedSessionId: String?
+
+        let server = FizzyServer(port: 17322, onNotification: { _, _, _ in }, onSessionEnd: { agent, sessionId in
+            receivedAgent = agent
+            receivedSessionId = sessionId
+            expectation.fulfill()
+        })
+        try server.start()
+        defer { server.stop() }
+
+        let json = """
+        {"agent": "claude_code", "session_id": "abc123"}
+        """
+        let (data, response) = try await post(port: 17322, path: "/session-end", json: json)
 
         XCTAssertEqual(response.statusCode, 200)
         let dict = try JSONSerialization.jsonObject(with: data) as! [String: Any]
-        XCTAssertEqual(dict["continue"] as? Bool, true)
+        XCTAssertEqual(dict["ok"] as? Bool, true)
         await fulfillment(of: [expectation], timeout: 2)
+        XCTAssertEqual(receivedAgent, "claude_code")
+        XCTAssertEqual(receivedSessionId, "abc123")
     }
 
     func testWrongPathReturns404() async throws {
-        let server = FizzyServer(port: 17321) { _, _, _ in }
+        let server = FizzyServer(port: 17321, onNotification: { _, _, _ in }, onSessionEnd: { _, _ in })
         try server.start()
         defer { server.stop() }
 

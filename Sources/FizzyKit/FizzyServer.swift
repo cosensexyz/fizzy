@@ -8,16 +8,22 @@ public final class FizzyServer: @unchecked Sendable {
     private let group: MultiThreadedEventLoopGroup
     private var channel: Channel?
     private let onNotification: @Sendable (String, any AgentPayload, EnvironmentContext) -> Void
+    private let onSessionEnd: @Sendable (String, String) -> Void
 
-    public init(port: Int, onNotification: @escaping @Sendable (String, any AgentPayload, EnvironmentContext) -> Void) {
+    public init(
+        port: Int,
+        onNotification: @escaping @Sendable (String, any AgentPayload, EnvironmentContext) -> Void,
+        onSessionEnd: @escaping @Sendable (String, String) -> Void
+    ) {
         self.port = port
         self.group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
         self.onNotification = onNotification
+        self.onSessionEnd = onSessionEnd
     }
 
     public func start() throws {
-        let handler = { @Sendable [onNotification] in
-            return RequestHandler(onNotification: onNotification)
+        let handler = { @Sendable [onNotification, onSessionEnd] in
+            return RequestHandler(onNotification: onNotification, onSessionEnd: onSessionEnd)
         }
         let bootstrap = ServerBootstrap(group: group)
             .serverChannelOption(.socketOption(.so_reuseaddr), value: 1)
@@ -42,11 +48,16 @@ private final class RequestHandler: ChannelInboundHandler, RemovableChannelHandl
     typealias OutboundOut = HTTPServerResponsePart
 
     private let onNotification: @Sendable (String, any AgentPayload, EnvironmentContext) -> Void
+    private let onSessionEnd: @Sendable (String, String) -> Void
     private var requestHead: HTTPRequestHead?
     private var body = ByteBuffer()
 
-    init(onNotification: @escaping @Sendable (String, any AgentPayload, EnvironmentContext) -> Void) {
+    init(
+        onNotification: @escaping @Sendable (String, any AgentPayload, EnvironmentContext) -> Void,
+        onSessionEnd: @escaping @Sendable (String, String) -> Void
+    ) {
         self.onNotification = onNotification
+        self.onSessionEnd = onSessionEnd
     }
 
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
@@ -82,13 +93,13 @@ private final class RequestHandler: ChannelInboundHandler, RemovableChannelHandl
             respond(context: context, status: .ok, json: #"{"continue":true}"#)
             onNotification(notification.agent, notification.payload, notification.env)
 
-        case "/claudecode/notification":
-            guard let payload = try? JSONDecoder().decode(ClaudeCodePayload.self, from: bodyData) else {
+        case "/session-end":
+            guard let req = try? JSONDecoder().decode(SessionEndRequest.self, from: bodyData) else {
                 respond(context: context, status: .badRequest, json: #"{"error":"invalid request"}"#)
                 return
             }
-            respond(context: context, status: .ok, json: #"{"continue":true}"#)
-            onNotification("claude_code", payload, EnvironmentContext())
+            respond(context: context, status: .ok, json: #"{"ok":true}"#)
+            onSessionEnd(req.agent, req.sessionId)
 
         default:
             respond(context: context, status: .notFound, json: #"{"error":"not found"}"#)
