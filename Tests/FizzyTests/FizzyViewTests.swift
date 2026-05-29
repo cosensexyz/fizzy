@@ -65,4 +65,10 @@ final class FizzyViewTests: XCTestCase {
         XCTAssertEqual(Array(view.revealedSlots.prefix(2)), first2)
         XCTAssertEqual(view.revealedSlots.count, 4)
     }
+
+    func testBubbleColorIsStaticGray() {
+        let view = FizzyView()
+        let color = view.bubbleColor.usingColorSpace(.deviceGray)!
+        XCTAssertEqual(color.whiteComponent, 0.80, accuracy: 0.01)
+    }
 }

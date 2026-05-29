@@ -95,6 +95,10 @@ public final class FizzyView: NSView {
         (sin(2 * .pi * (elapsedTime + delay) / period) + 1) / 2
     }
 
+    var bubbleColor: NSColor {
+        NSColor(white: 0.80, alpha: 1.0)
+    }
+
     public override func draw(_ dirtyRect: NSRect) {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
         let bounds = self.bounds
@@ -119,7 +123,7 @@ public final class FizzyView: NSView {
             width: mainRadius * 2, height: mainRadius * 2
         )
         let mainPath = NSBezierPath(ovalIn: mainRect)
-        NSColor.white.withAlphaComponent(mainOpacity).setStroke()
+        bubbleColor.withAlphaComponent(mainOpacity).setStroke()
         mainPath.lineWidth = 1.2
         mainPath.stroke()
 
@@ -132,7 +136,7 @@ public final class FizzyView: NSView {
             controlPoint1: NSPoint(x: 29.2, y: 74.7 + mainFloat),
             controlPoint2: NSPoint(x: 32.0, y: 76.8 + mainFloat)
         )
-        NSColor.white.withAlphaComponent(shimmer).setStroke()
+        bubbleColor.withAlphaComponent(shimmer).setStroke()
         highlightPath.lineWidth = 1.2
         highlightPath.lineCapStyle = .round
         highlightPath.stroke()
@@ -156,7 +160,7 @@ public final class FizzyView: NSView {
                 width: r * 2, height: r * 2
             )
             let bubblePath = NSBezierPath(ovalIn: bubbleRect)
-            NSColor.white.withAlphaComponent(opacity).setStroke()
+            bubbleColor.withAlphaComponent(opacity).setStroke()
             bubblePath.lineWidth = slot.strokeWidth
             bubblePath.stroke()
         }
