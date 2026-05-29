@@ -45,6 +45,17 @@ final class FizzyWindowTests: XCTestCase {
         XCTAssertEqual(menu.items[2].title, "Quit")
     }
 
+    func testUpdateBubbleColorPropagates() {
+        let window = FizzyWindow()
+        let color = NSColor.systemCyan
+        window.updateBubbleColor(color)
+        let result = window.fizzyView.bubbleColor.usingColorSpace(.sRGB)!
+        let expected = color.usingColorSpace(.sRGB)!
+        XCTAssertEqual(result.redComponent, expected.redComponent, accuracy: 0.01)
+        XCTAssertEqual(result.greenComponent, expected.greenComponent, accuracy: 0.01)
+        XCTAssertEqual(result.blueComponent, expected.blueComponent, accuracy: 0.01)
+    }
+
     func testBounceDoesNotCrash() {
         let window = FizzyWindow()
         window.bounce()

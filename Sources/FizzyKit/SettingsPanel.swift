@@ -12,6 +12,22 @@ public final class SettingsPanel: NSPanel {
     private var displayModeRow: NSStackView!
     private var permissionGrid: NSGridView!
 
+    public var onBubbleColorChanged: ((NSColor) -> Void)?
+    private var colorSwatches: [NSView] = []
+    private var swatchUnselectedBorders: [CGColor] = []
+    private var selectedColorIndex: Int = 0
+    private var colorSaveWork: DispatchWorkItem?
+    private var ownsColorPanel = false
+
+    static let presetColors: [(name: String, color: NSColor)] = [
+        ("White", NSColor(colorSpace: .sRGB, components: [1.0, 1.0, 1.0, 1.0], count: 4)),
+        ("Blue", NSColor(colorSpace: .sRGB, components: [0.0, 0.75, 1.0, 1.0], count: 4)),
+        ("Green", NSColor(colorSpace: .sRGB, components: [0.0, 0.9, 0.4, 1.0], count: 4)),
+        ("Pink", NSColor(colorSpace: .sRGB, components: [1.0, 0.3, 0.5, 1.0], count: 4)),
+        ("Orange", NSColor(colorSpace: .sRGB, components: [1.0, 0.6, 0.0, 1.0], count: 4)),
+        ("Purple", NSColor(colorSpace: .sRGB, components: [0.7, 0.3, 1.0, 1.0], count: 4)),
+    ]
+
     public init() {
         let size = NSSize(width: 480, height: 640)
         let screen = NSScreen.main ?? NSScreen.screens[0]
@@ -73,6 +89,10 @@ public final class SettingsPanel: NSPanel {
             stack.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor),
         ])
 
+        stack.addArrangedSubview(makeSectionLabel("Appearance"))
+        stack.addArrangedSubview(makeAppearanceRow())
+        stack.addArrangedSubview(makeSeparator())
+
         stack.addArrangedSubview(makeSectionLabel("Cycle Shortcut"))
         stack.addArrangedSubview(makeSecondaryLabel(
             "Hold your modifiers, then use arrow keys to switch between Claude Code sessions."
@@ -123,6 +143,118 @@ public final class SettingsPanel: NSPanel {
         let sep = NSBox()
         sep.boxType = .separator
         return sep
+    }
+
+    // MARK: - Appearance
+
+    private func makeAppearanceRow() -> NSView {
+        let row = NSStackView()
+        row.orientation = .horizontal
+        row.spacing = 8
+        row.alignment = .centerY
+
+        let label = NSTextField(labelWithString: "Bubble Color")
+        label.font = .systemFont(ofSize: 12)
+        label.textColor = .secondaryLabelColor
+        label.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        row.addArrangedSubview(label)
+
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        spacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        row.addArrangedSubview(spacer)
+
+        let savedHex = config.bubbleColorHex
+        selectedColorIndex = Self.presetColors.firstIndex(where: { $0.color.hexString == savedHex }) ?? -1
+
+        for (i, preset) in Self.presetColors.enumerated() {
+            let swatch = makeColorSwatch(color: preset.color, selected: i == selectedColorIndex)
+            colorSwatches.append(swatch)
+            row.addArrangedSubview(swatch)
+        }
+
+        let customSwatch = makeCustomSwatch(selected: selectedColorIndex == -1)
+        if selectedColorIndex == -1, let customColor = NSColor(hex: savedHex) {
+            customSwatch.wantsLayer = true
+            customSwatch.layer?.backgroundColor = customColor.cgColor
+        }
+        colorSwatches.append(customSwatch)
+        row.addArrangedSubview(customSwatch)
+
+        return row
+    }
+
+    private func makeColorSwatch(color: NSColor, selected: Bool) -> NSView {
+        let size: CGFloat = 20
+        let swatch = NSView(frame: NSRect(x: 0, y: 0, width: size, height: size))
+        swatch.wantsLayer = true
+        swatch.layer?.cornerRadius = size / 2
+        swatch.layer?.backgroundColor = color.cgColor
+        let isWhite = color.usingColorSpace(.sRGB).map { $0.redComponent > 0.95 && $0.greenComponent > 0.95 && $0.blueComponent > 0.95 } ?? false
+        let unselectedBorder = isWhite ? NSColor.gray.cgColor : NSColor.separatorColor.cgColor
+        swatchUnselectedBorders.append(unselectedBorder)
+        swatch.layer?.borderWidth = selected ? 2.5 : 1.5
+        swatch.layer?.borderColor = selected ? NSColor.controlAccentColor.cgColor : unselectedBorder
+        swatch.translatesAutoresizingMaskIntoConstraints = false
+        swatch.widthAnchor.constraint(equalToConstant: size).isActive = true
+        swatch.heightAnchor.constraint(equalToConstant: size).isActive = true
+
+        let click = NSClickGestureRecognizer(target: self, action: #selector(swatchClicked(_:)))
+        swatch.addGestureRecognizer(click)
+
+        return swatch
+    }
+
+    private func makeCustomSwatch(selected: Bool) -> NSView {
+        let size: CGFloat = 20
+        let swatch = NSView(frame: NSRect(x: 0, y: 0, width: size, height: size))
+        swatch.wantsLayer = true
+        swatch.layer?.cornerRadius = size / 2
+        let unselectedBorder = NSColor.separatorColor.cgColor
+        swatchUnselectedBorders.append(unselectedBorder)
+        swatch.layer?.borderWidth = selected ? 2.5 : 1.5
+        swatch.layer?.borderColor = selected ? NSColor.controlAccentColor.cgColor : unselectedBorder
+        swatch.translatesAutoresizingMaskIntoConstraints = false
+        swatch.widthAnchor.constraint(equalToConstant: size).isActive = true
+        swatch.heightAnchor.constraint(equalToConstant: size).isActive = true
+
+        let gradient = CAGradientLayer()
+        gradient.type = .conic
+        gradient.colors = [
+            NSColor.red.cgColor, NSColor.yellow.cgColor,
+            NSColor.green.cgColor, NSColor.cyan.cgColor,
+            NSColor.blue.cgColor, NSColor.magenta.cgColor,
+            NSColor.red.cgColor,
+        ]
+        gradient.startPoint = CGPoint(x: 0.5, y: 0.5)
+        gradient.endPoint = CGPoint(x: 0.5, y: 0)
+        gradient.frame = NSRect(x: 0, y: 0, width: size, height: size)
+        gradient.cornerRadius = size / 2
+
+        let mask = CAShapeLayer()
+        mask.path = CGPath(ellipseIn: NSRect(x: 1, y: 1, width: size - 2, height: size - 2), transform: nil)
+        gradient.mask = mask
+
+        swatch.layer?.addSublayer(gradient)
+
+        let click = NSClickGestureRecognizer(target: self, action: #selector(customSwatchClicked(_:)))
+        swatch.addGestureRecognizer(click)
+
+        return swatch
+    }
+
+    private func updateSwatchSelection(_ index: Int) {
+        selectedColorIndex = index
+        for (i, swatch) in colorSwatches.enumerated() {
+            let selected = i == index
+            swatch.layer?.borderWidth = selected ? 2.5 : 1.5
+            let unselected = i < swatchUnselectedBorders.count ? swatchUnselectedBorders[i] : NSColor.separatorColor.cgColor
+            swatch.layer?.borderColor = selected ? NSColor.controlAccentColor.cgColor : unselected
+        }
+        let customIndex = colorSwatches.count - 1
+        if index != customIndex, let gradient = colorSwatches[customIndex].layer?.sublayers?.first {
+            gradient.opacity = 1
+        }
     }
 
     // MARK: - Modifier checkboxes
@@ -522,18 +654,75 @@ public final class SettingsPanel: NSPanel {
         config.save()
     }
 
+    @objc private func swatchClicked(_ sender: NSClickGestureRecognizer) {
+        guard let swatch = sender.view,
+              let index = colorSwatches.firstIndex(of: swatch),
+              index < Self.presetColors.count else { return }
+        let color = Self.presetColors[index].color
+        config.bubbleColorHex = color.hexString
+        config.save()
+        updateSwatchSelection(index)
+        onBubbleColorChanged?(color)
+    }
+
+    @objc private func customSwatchClicked(_ sender: NSClickGestureRecognizer) {
+        let panel = NSColorPanel.shared
+        panel.setTarget(self)
+        panel.setAction(#selector(colorPanelChanged(_:)))
+        panel.color = NSColor(hex: config.bubbleColorHex) ?? NSColor(white: 1.0, alpha: 1.0)
+        ownsColorPanel = true
+        panel.orderFront(nil)
+    }
+
+    @objc private func colorPanelChanged(_ sender: NSColorPanel) {
+        let color = sender.color
+        config.bubbleColorHex = color.hexString
+        colorSaveWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.config.save() }
+        colorSaveWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
+        let customIndex = colorSwatches.count - 1
+        updateSwatchSelection(customIndex)
+        colorSwatches[customIndex].layer?.sublayers?.first?.opacity = 0
+        colorSwatches[customIndex].layer?.backgroundColor = color.cgColor
+        onBubbleColorChanged?(color)
+    }
+
     @objc private func openSystemSettings() {
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
     }
 
+    private func cleanUpColorPanel() {
+        if ownsColorPanel {
+            let panel = NSColorPanel.shared
+            panel.setTarget(nil)
+            panel.setAction(nil)
+            panel.orderOut(nil)
+            ownsColorPanel = false
+        }
+    }
+
     @objc private func doneClicked() {
+        cleanUpColorPanel()
         orderOut(nil)
+    }
+
+    public override func close() {
+        cleanUpColorPanel()
+        super.close()
     }
 
     // MARK: - Public API
 
     public func show() {
         config = FizzyConfig.load()
+        let savedHex = config.bubbleColorHex
+        selectedColorIndex = Self.presetColors.firstIndex(where: { $0.color.hexString == savedHex }) ?? -1
+        if selectedColorIndex == -1 {
+            updateSwatchSelection(colorSwatches.count - 1)
+        } else {
+            updateSwatchSelection(selectedColorIndex)
+        }
         for entry in modifierCheckboxes {
             entry.button.state = config.cycle.modifierFlags.contains(entry.flag) ? .on : .off
         }

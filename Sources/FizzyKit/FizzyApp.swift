@@ -24,6 +24,9 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
 
         window = FizzyWindow()
         window.orderFront(nil)
+        if let color = NSColor(hex: FizzyConfig.load().bubbleColorHex) {
+            window.updateBubbleColor(color)
+        }
         window.onPetClicked = { [weak self] in self?.toggleList() }
         window.onPetHoverEnter = { [weak self] in
             if FizzyConfig.load().listTrigger == .hover { self?.showList() }
@@ -191,6 +194,9 @@ public class FizzyApp: NSObject, NSApplicationDelegate {
     private func showSettings() {
         if settingsPanel == nil {
             settingsPanel = SettingsPanel()
+            settingsPanel?.onBubbleColorChanged = { [weak self] color in
+                self?.window.updateBubbleColor(color)
+            }
         }
         settingsPanel?.show()
     }

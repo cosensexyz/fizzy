@@ -66,9 +66,21 @@ final class FizzyViewTests: XCTestCase {
         XCTAssertEqual(view.revealedSlots.count, 4)
     }
 
-    func testBubbleColorIsStaticGray() {
+    func testDefaultBubbleColorIsWhite() {
         let view = FizzyView()
-        let color = view.bubbleColor.usingColorSpace(.deviceGray)!
-        XCTAssertEqual(color.whiteComponent, 0.80, accuracy: 0.01)
+        let color = view.bubbleColor.usingColorSpace(.sRGB)!
+        XCTAssertEqual(color.redComponent, 1.0, accuracy: 0.01)
+        XCTAssertEqual(color.greenComponent, 1.0, accuracy: 0.01)
+        XCTAssertEqual(color.blueComponent, 1.0, accuracy: 0.01)
+    }
+
+    func testBubbleColorCanBeChanged() {
+        let view = FizzyView()
+        view.bubbleColor = NSColor.systemCyan
+        let color = view.bubbleColor.usingColorSpace(.sRGB)!
+        let cyan = NSColor.systemCyan.usingColorSpace(.sRGB)!
+        XCTAssertEqual(color.redComponent, cyan.redComponent, accuracy: 0.01)
+        XCTAssertEqual(color.greenComponent, cyan.greenComponent, accuracy: 0.01)
+        XCTAssertEqual(color.blueComponent, cyan.blueComponent, accuracy: 0.01)
     }
 }

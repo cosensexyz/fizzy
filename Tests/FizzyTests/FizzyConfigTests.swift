@@ -3,7 +3,7 @@ import CoreGraphics
 @testable import FizzyKit
 
 final class FizzyConfigTests: XCTestCase {
-    private let testKeys = ["cycleModifierFlags", "cycleDisplayMode", "listTrigger"]
+    private let testKeys = ["cycleModifierFlags", "cycleDisplayMode", "listTrigger", "bubbleColor"]
 
     override func setUp() {
         super.setUp()
@@ -47,5 +47,19 @@ final class FizzyConfigTests: XCTestCase {
         XCTAssertEqual(config.listTrigger, .click)
         XCTAssertTrue(config.cycle.modifierFlags.contains(.maskCommand))
         XCTAssertEqual(config.cycle.displayMode, .listAndPreview)
+    }
+
+    func testDefaultBubbleColor() {
+        let config = FizzyConfig()
+        XCTAssertEqual(config.bubbleColorHex, "#FFFFFF")
+    }
+
+    func testBubbleColorSaveAndLoad() {
+        var config = FizzyConfig()
+        config.bubbleColorHex = "#00CCFF"
+        config.save()
+
+        let loaded = FizzyConfig.load()
+        XCTAssertEqual(loaded.bubbleColorHex, "#00CCFF")
     }
 }

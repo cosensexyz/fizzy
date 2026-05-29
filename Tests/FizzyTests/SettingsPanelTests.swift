@@ -60,4 +60,30 @@ final class SettingsPanelTests: XCTestCase {
             current: [.maskCommand, .maskShift], removing: .maskAlternate
         ))
     }
+
+    // MARK: - Preset colors
+
+    func testPresetColorsCount() {
+        XCTAssertEqual(SettingsPanel.presetColors.count, 6)
+    }
+
+    func testPresetColorsProduceValidHex() {
+        for preset in SettingsPanel.presetColors {
+            let hex = preset.color.hexString
+            XCTAssertTrue(hex.hasPrefix("#"), "\(preset.name) hex should start with #")
+            XCTAssertEqual(hex.count, 7, "\(preset.name) hex should be 7 chars")
+        }
+    }
+
+    func testPresetWhiteIsDefault() {
+        let white = SettingsPanel.presetColors.first
+        XCTAssertEqual(white?.name, "White")
+        XCTAssertEqual(white?.color.hexString, "#FFFFFF")
+    }
+
+    func testPresetColorsMatchDefaultConfig() {
+        let defaultHex = FizzyConfig().bubbleColorHex
+        let match = SettingsPanel.presetColors.contains(where: { $0.color.hexString == defaultHex })
+        XCTAssertTrue(match, "Default config color should match a preset")
+    }
 }

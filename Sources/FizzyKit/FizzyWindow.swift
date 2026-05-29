@@ -92,6 +92,11 @@ public final class FizzyWindow: NSWindow {
         mouseDownOrigin = nil
     }
 
+    public func updateBubbleColor(_ color: NSColor) {
+        fizzyView.bubbleColor = color
+        fizzyView.needsDisplay = true
+    }
+
     public func updateFizzyState(unreadCount: Int) {
         fizzyView.state = unreadCount > 0 ? .active(unreadCount: unreadCount) : .idle
     }
