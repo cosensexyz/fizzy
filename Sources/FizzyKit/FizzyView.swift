@@ -96,7 +96,7 @@ public final class FizzyView: NSView {
     }
 
     var bubbleColor: NSColor {
-        NSColor(white: 0.80, alpha: 1.0)
+        NSColor(white: 0.90, alpha: 1.0)
     }
 
     public override func draw(_ dirtyRect: NSRect) {
