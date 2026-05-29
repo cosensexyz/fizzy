@@ -51,6 +51,7 @@ public final class FizzyView: NSView {
     private var elapsedTime: CGFloat = 0
 
     public override var isFlipped: Bool { false }
+    public override var isOpaque: Bool { false }
 
     public override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
@@ -95,10 +96,14 @@ public final class FizzyView: NSView {
     }
 
     public override func draw(_ dirtyRect: NSRect) {
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
         let bounds = self.bounds
 
-        NSColor(white: 1, alpha: 0.01).setFill()
-        NSBezierPath(rect: bounds).fill()
+        ctx.saveGState()
+        ctx.setBlendMode(.copy)
+        ctx.setFillColor(CGColor(gray: 0, alpha: 0.005))
+        ctx.fill(bounds)
+        ctx.restoreGState()
 
         let cx = bounds.midX
         let cy: CGFloat = 60
