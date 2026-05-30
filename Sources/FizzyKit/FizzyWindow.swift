@@ -1,6 +1,6 @@
 import AppKit
 
-public final class FizzyWindow: NSWindow {
+public final class FizzyWindow: NSPanel {
     static let windowSize = NSSize(width: 80, height: 96)
     static let originKey = "FizzyWindowOrigin"
 
@@ -37,7 +37,7 @@ public final class FizzyWindow: NSWindow {
         let origin = FizzyWindow.savedOrigin() ?? defaultOrigin
         super.init(
             contentRect: NSRect(origin: origin, size: size),
-            styleMask: .borderless,
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )

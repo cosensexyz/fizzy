@@ -599,7 +599,7 @@ private final class HoverRow: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
-        let hit = super.hitTest(point)
+        guard let hit = super.hitTest(point) else { return nil }
         if hit is NSButton { return hit }
         return self
     }

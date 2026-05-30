@@ -108,12 +108,17 @@ enum PreviewOverlay {
         return parseTmuxGeometry(output)
     }
 
+    static func resolveRect(terminalFrame: NSRect, tmuxPaneRect: NSRect?) -> NSRect {
+        tmuxPaneRect ?? terminalFrame
+    }
+
     static func resolvePaneRect(for item: NotificationItem, pid: pid_t) -> NSRect? {
-        guard let pane = item.env.tmuxPane,
-              let terminalFrame = queryTerminalFrame(pid: pid),
-              let geometry = queryTmuxGeometry(pane: pane, socketPath: item.env.tmuxSocketPath)
-        else { return nil }
-        return calculatePaneRect(geometry: geometry, terminalFrame: terminalFrame)
+        guard let terminalFrame = queryTerminalFrame(pid: pid) else { return nil }
+        let tmuxPaneRect: NSRect? = item.env.tmuxPane.flatMap { pane in
+            queryTmuxGeometry(pane: pane, socketPath: item.env.tmuxSocketPath)
+                .flatMap { calculatePaneRect(geometry: $0, terminalFrame: terminalFrame) }
+        }
+        return resolveRect(terminalFrame: terminalFrame, tmuxPaneRect: tmuxPaneRect)
     }
 
     private static func localPaneRect(_ paneRect: NSRect, in screenFrame: NSRect) -> NSRect {

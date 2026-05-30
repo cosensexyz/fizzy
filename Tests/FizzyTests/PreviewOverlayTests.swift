@@ -47,6 +47,17 @@ final class PreviewOverlayTests: XCTestCase {
         XCTAssertEqual(rect!.width, 966 * 80.0 / 161.0, accuracy: 1)
     }
 
+    func testResolveRectReturnsTmuxPaneRectWhenAvailable() {
+        let terminal = NSRect(x: 0, y: 0, width: 800, height: 600)
+        let pane = NSRect(x: 0, y: 0, width: 400, height: 300)
+        XCTAssertEqual(PreviewOverlay.resolveRect(terminalFrame: terminal, tmuxPaneRect: pane), pane)
+    }
+
+    func testResolveRectFallsBackToTerminalFrame() {
+        let terminal = NSRect(x: 100, y: 200, width: 800, height: 600)
+        XCTAssertEqual(PreviewOverlay.resolveRect(terminalFrame: terminal, tmuxPaneRect: nil), terminal)
+    }
+
     func testDimViewStoresPaneRect() {
         let view = DimView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
         view.paneRect = NSRect(x: 100, y: 100, width: 200, height: 200)

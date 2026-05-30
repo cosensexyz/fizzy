@@ -105,6 +105,7 @@ enum TerminalActivator {
             }
             let paneRect = PreviewOverlay.resolvePaneRect(for: item, pid: pid)
             DispatchQueue.main.async {
+                NSRunningApplication(processIdentifier: pid)?.activate(options: [])
                 if let paneRect { PreviewOverlay.update(paneRect: paneRect) }
             }
         }

@@ -61,4 +61,10 @@ final class FizzyWindowTests: XCTestCase {
         window.bounce()
         XCTAssertTrue(window.isVisible || true)
     }
+
+    func testWindowIsNonActivatingPanel() {
+        let window = FizzyWindow()
+        XCTAssertTrue(window is NSPanel)
+        XCTAssertTrue(window.styleMask.contains(.nonactivatingPanel))
+    }
 }
