@@ -131,4 +131,79 @@ final class NotificationListPanelTests: XCTestCase {
         _ = panel
         XCTAssertEqual(store.unreadCount, unreadBefore, "Hover must not mark items as read")
     }
+
+    private func showPanelWithDistinctItems() -> (NotificationListPanel, NotificationItem, NotificationItem, [NSView], UnsafeMutablePointer<NotificationItem?>) {
+        let panel = NotificationListPanel()
+        let store = NotificationStore()
+        let itemA = store.add(ClaudeCodePayload(
+            sessionId: "s1", transcriptPath: "/tmp/t", cwd: "/tmp/projectA",
+            hookEventName: "Notification", message: "msg A", notificationType: "idle_prompt"
+        ))
+        let itemB = store.add(ClaudeCodePayload(
+            sessionId: "s2", transcriptPath: "/tmp/t", cwd: "/tmp/projectB",
+            hookEventName: "Notification", message: "msg B", notificationType: "idle_prompt"
+        ))
+        let petWindow = NSWindow(
+            contentRect: NSRect(x: 100, y: 100, width: 80, height: 96),
+            styleMask: .borderless, backing: .buffered, defer: false
+        )
+        let opened = UnsafeMutablePointer<NotificationItem?>.allocate(capacity: 1)
+        opened.initialize(to: nil)
+        panel.show(store: store, relativeTo: petWindow, onUpdate: {}, onOpen: { opened.pointee = $0 })
+        let rows = arrangedRows(in: panel)
+        return (panel, itemA, itemB, rows, opened)
+    }
+
+    func testHitTestTargetsCorrectRowByPosition() {
+        let (panel, _, _, rows, opened) = showPanelWithDistinctItems()
+        defer { opened.deallocate() }
+        guard rows.count == 2 else { return XCTFail("Expected 2 rows") }
+
+        guard let parent = rows[0].superview else { return XCTFail("Rows must have a parent") }
+        for (i, row) in rows.enumerated() {
+            let centerInParent = NSPoint(x: row.frame.midX, y: row.frame.midY)
+            let hit = parent.hitTest(centerInParent)
+            XCTAssertEqual(hit, row, "Parent hitTest at row \(i) center must resolve to that row")
+        }
+
+        let outside = NSPoint(x: -100, y: -100)
+        for (i, row) in rows.enumerated() {
+            let hit = row.hitTest(outside)
+            XCTAssertNil(hit, "hitTest outside bounds of row \(i) must return nil")
+        }
+        _ = panel
+    }
+
+    func testClickTargetsCorrectRowInMixedList() {
+        let (panel, itemA, _, rows, opened) = showPanelWithDistinctItems()
+        defer { opened.deallocate() }
+        guard rows.count == 2 else { return XCTFail("Expected 2 rows") }
+
+        // store.add prepends, so rows[0] = itemB (most recent), rows[1] = itemA
+        let secondRow = rows[1]
+        let clickEvent = NSEvent.mouseEvent(
+            with: .leftMouseDown, location: NSPoint(x: 10, y: 10),
+            modifierFlags: [], timestamp: 0, windowNumber: panel.windowNumber,
+            context: nil, eventNumber: 0, clickCount: 1, pressure: 1.0
+        )!
+        secondRow.mouseDown(with: clickEvent)
+
+        XCTAssertEqual(opened.pointee?.id, itemA.id, "Clicking second row must open itemA, not itemB")
+    }
+
+    func testHoverRow0ThenClickRow1OpensRow1() {
+        let (panel, itemA, _, rows, opened) = showPanelWithDistinctItems()
+        defer { opened.deallocate() }
+        guard rows.count == 2 else { return XCTFail("Expected 2 rows") }
+
+        let clickEvent = NSEvent.mouseEvent(
+            with: .leftMouseDown, location: NSPoint(x: 10, y: 10),
+            modifierFlags: [], timestamp: 0, windowNumber: panel.windowNumber,
+            context: nil, eventNumber: 0, clickCount: 1, pressure: 1.0
+        )!
+        rows[0].mouseEntered(with: clickEvent)
+        rows[1].mouseDown(with: clickEvent)
+
+        XCTAssertEqual(opened.pointee?.id, itemA.id, "Hovering row 0 then clicking row 1 must open row 1's item")
+    }
 }
